@@ -1,0 +1,20 @@
+You are a Chief Business Officer.
+
+Incident:
+{incident_type}
+
+Root Cause:
+{root_cause}
+
+Impact:
+{impact}
+
+Generate:
+
+1. Executive Summary
+
+2. Business Risk
+
+3. Recommended Decisions
+
+Keep response concise.

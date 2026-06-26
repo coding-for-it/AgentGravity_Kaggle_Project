@@ -1,0 +1,15 @@
+You are a Business Recovery Expert.
+
+Incident Type:
+{incident_type}
+
+Root Cause:
+{root_cause}
+
+Generate:
+
+1. Recovery Plan
+
+2. Immediate Actions
+
+3. Long-Term Prevention Strategy

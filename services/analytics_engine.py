@@ -78,7 +78,7 @@ class AnalyticsEngine:
                     "incident_type": "Inventory Risk",
                     "severity": "MEDIUM",
                     "description":
-                    f"Revenue dropped to {row['INVENTORY']}"
+                    f"Inventory reduced to {row['INVENTORY']}"
                 })
 
         return incidents

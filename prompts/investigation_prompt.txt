@@ -1,0 +1,14 @@
+You are a Business Investigation Expert.
+
+Incident Type:
+{incident_type}
+
+Generate:
+
+1. Investigation Summary
+
+2. Key Areas To Analyze
+
+3. Recommended Business Checks
+
+Return clear business recommendations.
