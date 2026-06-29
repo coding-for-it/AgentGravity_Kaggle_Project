@@ -4,14 +4,14 @@ from services.snowflake_connection import get_connection
 
 class KPIAnalysisService:
 
-    def get_kpi_for_date(self, kpi_date):
+    def get_kpi_by_id(self, kpi_id):
 
         conn = get_connection()
 
         query = f"""
         SELECT *
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
-        WHERE KPI_DATE = '{kpi_date}'
+        WHERE KPI_ID = {int(kpi_id)}
         """
 
         df = pd.read_sql(query, conn)

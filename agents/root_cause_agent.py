@@ -11,6 +11,8 @@ class RootCauseAgent:
 
         self.agent_name = "Root Cause Agent"
 
+        self.service = KPIAnalysisService()
+
     def get_open_incidents(self):
 
         conn = get_connection()
@@ -18,7 +20,8 @@ class RootCauseAgent:
         query = """
         SELECT *
         FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-        WHERE STATUS='OPEN'
+        WHERE STATUS = 'OPEN'
+        ORDER BY INCIDENT_ID
         """
 
         df = pd.read_sql(query, conn)
@@ -64,15 +67,21 @@ class RootCauseAgent:
         conn.commit()
 
         cursor.close()
+
         conn.close()
 
-    def investigate_incident(self, kpi_date):
+    def investigate_incident(self, kpi_id):
 
-        service = KPIAnalysisService()
+        incident_kpi = self.service.get_kpi_by_id(kpi_id)
 
-        incident_kpi = service.get_kpi_for_date(kpi_date)
+        if incident_kpi.empty:
 
-        averages = service.get_historical_averages()
+            return (
+                "Unknown Cause",
+                0.50
+            )
+
+        averages = self.service.get_historical_averages()
 
         row = incident_kpi.iloc[0]
 
@@ -83,26 +92,37 @@ class RootCauseAgent:
                 0.92
             )
 
-        if row["CHURN_RATE"] > averages["AVG_CHURN"] * 1.50:
+        elif row["CHURN_RATE"] > averages["AVG_CHURN"] * 1.50:
 
             return (
                 "Customer Satisfaction Issue",
                 0.90
             )
 
-        if row["CUSTOMERS"] < averages["AVG_CUSTOMERS"] * 0.75:
+        elif row["CUSTOMERS"] < averages["AVG_CUSTOMERS"] * 0.75:
 
             return (
                 "Customer Demand Drop",
                 0.88
             )
 
-        return (
-            "Unknown Cause",
-            0.50
-        )
+        elif row["REVENUE"] < averages["AVG_REVENUE"] * 0.75:
+
+            return (
+                "Revenue Decline",
+                0.87
+            )
+
+        else:
+
+            return (
+                "Unknown Cause",
+                0.50
+            )
 
     def run(self):
+
+        print(f"\n[{self.agent_name}] Started")
 
         log_agent_activity(
             self.agent_name,
@@ -111,10 +131,12 @@ class RootCauseAgent:
 
         incidents = self.get_open_incidents()
 
+        print(f"\nOpen Incidents: {len(incidents)}")
+
         for _, incident in incidents.iterrows():
 
             cause, confidence = self.investigate_incident(
-                incident["KPI_DATE"]
+                incident["KPI_ID"]
             )
 
             self.save_root_cause(
@@ -125,10 +147,11 @@ class RootCauseAgent:
 
             print(
                 f"""
-Incident {incident['INCIDENT_ID']}
-Date: {incident['KPI_DATE']}
-Cause: {cause}
-Confidence: {confidence}
+Incident ID : {incident['INCIDENT_ID']}
+KPI ID      : {incident['KPI_ID']}
+Type        : {incident['INCIDENT_TYPE']}
+Cause       : {cause}
+Confidence  : {confidence}
 """
             )
 
@@ -136,6 +159,8 @@ Confidence: {confidence}
             self.agent_name,
             "Completed Root Cause Analysis"
         )
+
+        print(f"\n[{self.agent_name}] Completed")
 
 
 if __name__ == "__main__":
