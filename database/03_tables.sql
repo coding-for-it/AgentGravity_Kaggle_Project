@@ -1,0 +1,178 @@
+-- =====================================================
+-- AgentGravity
+-- Table Creation Script
+-- =====================================================
+
+USE DATABASE AGENTGRAVITY;
+
+----------------------------------------------------------
+-- BUSINESS
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE BUSINESS.KPI_METRICS (
+
+    KPI_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    KPI_DATE DATE NOT NULL,
+
+    REVENUE FLOAT NOT NULL,
+
+    ORDERS INTEGER NOT NULL,
+
+    CUSTOMERS INTEGER NOT NULL,
+
+    INVENTORY INTEGER NOT NULL,
+
+    CHURN_RATE FLOAT NOT NULL
+
+);
+
+----------------------------------------------------------
+-- INCIDENTS
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE INCIDENTS.INCIDENTS (
+
+    INCIDENT_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    KPI_ID INTEGER NOT NULL,
+
+    INCIDENT_DATE TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP(),
+
+    INCIDENT_TYPE STRING NOT NULL,
+
+    SEVERITY STRING NOT NULL,
+
+    STATUS STRING
+        DEFAULT 'OPEN',
+
+    DESCRIPTION STRING NOT NULL,
+
+    CONSTRAINT FK_INCIDENT_KPI
+
+    FOREIGN KEY (KPI_ID)
+
+    REFERENCES BUSINESS.KPI_METRICS(KPI_ID)
+
+);
+
+----------------------------------------------------------
+-- ROOT CAUSES
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE INCIDENTS.ROOT_CAUSES (
+
+    ROOT_CAUSE_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    INCIDENT_ID INTEGER NOT NULL,
+
+    CAUSE_NAME STRING NOT NULL,
+
+    CONFIDENCE_SCORE FLOAT NOT NULL,
+
+    CONSTRAINT FK_ROOTCAUSE_INCIDENT
+
+    FOREIGN KEY (INCIDENT_ID)
+
+    REFERENCES INCIDENTS.INCIDENTS(INCIDENT_ID)
+
+);
+
+----------------------------------------------------------
+-- IMPACT ANALYSIS
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE INCIDENTS.IMPACT_ANALYSIS (
+
+    IMPACT_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    INCIDENT_ID INTEGER NOT NULL,
+
+    ESTIMATED_REVENUE_LOSS FLOAT NOT NULL,
+
+    BUSINESS_SEVERITY STRING NOT NULL,
+
+    CREATED_AT TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP(),
+
+    CONSTRAINT FK_IMPACT_INCIDENT
+
+    FOREIGN KEY (INCIDENT_ID)
+
+    REFERENCES INCIDENTS.INCIDENTS(INCIDENT_ID)
+
+);
+
+----------------------------------------------------------
+-- RECOVERY ACTIONS
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE INCIDENTS.RECOVERY_ACTIONS (
+
+    ACTION_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    INCIDENT_ID INTEGER NOT NULL,
+
+    ACTION_NAME STRING NOT NULL,
+
+    EXPECTED_RECOVERY FLOAT,
+
+    CONSTRAINT FK_RECOVERY_INCIDENT
+
+    FOREIGN KEY (INCIDENT_ID)
+
+    REFERENCES INCIDENTS.INCIDENTS(INCIDENT_ID)
+
+);
+
+----------------------------------------------------------
+-- EXECUTIVE REPORTS
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE INCIDENTS.EXECUTIVE_REPORTS (
+
+    REPORT_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    INCIDENT_ID INTEGER NOT NULL,
+
+    EXECUTIVE_SUMMARY STRING,
+
+    RECOMMENDED_ACTION STRING,
+
+    PRIORITY STRING,
+
+    CREATED_AT TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP(),
+
+    CONSTRAINT FK_REPORT_INCIDENT
+
+    FOREIGN KEY (INCIDENT_ID)
+
+    REFERENCES INCIDENTS.INCIDENTS(INCIDENT_ID)
+
+);
+
+----------------------------------------------------------
+-- AUDIT LOG
+----------------------------------------------------------
+
+CREATE OR REPLACE TABLE SECURITY.AGENT_AUDIT_LOG (
+
+    LOG_ID INTEGER AUTOINCREMENT
+        PRIMARY KEY,
+
+    AGENT_NAME STRING NOT NULL,
+
+    ACTION_PERFORMED STRING NOT NULL,
+
+    EXECUTION_TIME TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP()
+
+);

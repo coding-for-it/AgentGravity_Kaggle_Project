@@ -1,12 +1,7 @@
 from services.snowflake_connection import get_connection
 
 
-def save_incident(
-    kpi_date,
-    incident_type,
-    severity,
-    description
-):
+def save_incidents(incidents):
 
     conn = get_connection()
 
@@ -15,7 +10,7 @@ def save_incident(
     query = """
     INSERT INTO AGENTGRAVITY.INCIDENTS.INCIDENTS
     (
-        KPI_DATE,
+        KPI_ID,
         INCIDENT_DATE,
         INCIDENT_TYPE,
         SEVERITY,
@@ -33,17 +28,22 @@ def save_incident(
     )
     """
 
-    cursor.execute(
-        query,
-        (
-            kpi_date,
-            incident_type,
-            severity,
-            description
+    for incident in incidents:
+
+        cursor.execute(
+            query,
+            (
+                incident["kpi_id"],
+                incident["incident_type"],
+                incident["severity"],
+                incident["description"]
+            )
         )
-    )
 
     conn.commit()
 
     cursor.close()
+
     conn.close()
+
+    print(f"\nSaved {len(incidents)} incidents.")

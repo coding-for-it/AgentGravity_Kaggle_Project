@@ -33,33 +33,34 @@ class ImpactAgent:
         if revenue_loss > 5000:
             return "CRITICAL"
 
-        if revenue_loss > 3000:
+        elif revenue_loss > 3000:
             return "HIGH"
 
-        if revenue_loss > 1000:
+        elif revenue_loss > 1000:
             return "MEDIUM"
 
-        return "LOW"
+        else:
+            return "LOW"
 
     def run(self):
+
+        print(f"\n[{self.agent_name}] Started")
 
         log_agent_activity(
             self.agent_name,
             "Impact Analysis Started"
         )
 
-        avg_revenue = (
-            self.service.get_historical_average_revenue()
-        )
+        avg_revenue = self.service.get_historical_average_revenue()
 
         incidents = self.get_incidents()
 
+        impact_results = []
+
         for _, incident in incidents.iterrows():
 
-            actual_revenue = (
-                self.service.get_revenue_for_date(
-                    incident["KPI_DATE"]
-                )
+            actual_revenue = self.service.get_revenue_for_date(
+                incident["KPI_DATE"]
             )
 
             revenue_loss = max(
@@ -77,9 +78,19 @@ class ImpactAgent:
                 severity
             )
 
+            result = {
+                "incident_id": incident["INCIDENT_ID"],
+                "incident_type": incident["INCIDENT_TYPE"],
+                "estimated_loss": revenue_loss,
+                "severity": severity
+            }
+
+            impact_results.append(result)
+
             print(
                 f"""
 Incident: {incident['INCIDENT_ID']}
+Type: {incident['INCIDENT_TYPE']}
 Revenue Loss: {revenue_loss}
 Severity: {severity}
 """
@@ -90,7 +101,16 @@ Severity: {severity}
             "Impact Analysis Completed"
         )
 
+        print(f"\n[{self.agent_name}] Completed")
+
+        return impact_results
+
 
 if __name__ == "__main__":
 
-    ImpactAgent().run()
+    reports = ImpactAgent().run()
+
+    print("\n===== IMPACT REPORT =====")
+
+    for report in reports:
+        print(report)
