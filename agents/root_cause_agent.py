@@ -1,8 +1,5 @@
-from services.snowflake_connection import get_connection
+from services.root_cause_service import RootCauseService
 from services.audit_logger import log_agent_activity
-from services.kpi_analysis_service import KPIAnalysisService
-
-import pandas as pd
 
 
 class RootCauseAgent:
@@ -11,79 +8,13 @@ class RootCauseAgent:
 
         self.agent_name = "Root Cause Agent"
 
-        self.service = KPIAnalysisService()
+        self.service = RootCauseService()
 
-    def get_open_incidents(self):
-
-        conn = get_connection()
-
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-        WHERE STATUS = 'OPEN'
-        ORDER BY INCIDENT_ID
-        """
-
-        df = pd.read_sql(query, conn)
-
-        conn.close()
-
-        return df
-
-    def save_root_cause(
+    def identify_root_cause(
         self,
-        incident_id,
-        cause_name,
-        confidence
+        row,
+        averages
     ):
-
-        conn = get_connection()
-
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            INSERT INTO
-            AGENTGRAVITY.INCIDENTS.ROOT_CAUSES
-            (
-                INCIDENT_ID,
-                CAUSE_NAME,
-                CONFIDENCE_SCORE
-            )
-            VALUES
-            (
-                %s,
-                %s,
-                %s
-            )
-            """,
-            (
-                int(incident_id),
-                cause_name,
-                float(confidence)
-            )
-        )
-
-        conn.commit()
-
-        cursor.close()
-
-        conn.close()
-
-    def investigate_incident(self, kpi_id):
-
-        incident_kpi = self.service.get_kpi_by_id(kpi_id)
-
-        if incident_kpi.empty:
-
-            return (
-                "Unknown Cause",
-                0.50
-            )
-
-        averages = self.service.get_historical_averages()
-
-        row = incident_kpi.iloc[0]
 
         if row["INVENTORY"] < averages["AVG_INVENTORY"] * 0.70:
 
@@ -125,42 +56,98 @@ class RootCauseAgent:
         print(f"\n[{self.agent_name}] Started")
 
         log_agent_activity(
+
             self.agent_name,
+
             "Started Root Cause Analysis"
+
         )
 
-        incidents = self.get_open_incidents()
+        incidents = self.service.get_open_incidents()
 
-        print(f"\nOpen Incidents: {len(incidents)}")
+        kpis = self.service.get_all_kpis()
+
+        averages = self.service.get_historical_averages()
+
+        existing = self.service.get_existing_root_causes()
+
+        results = []
+
+        processed = 0
+
+        skipped = 0
 
         for _, incident in incidents.iterrows():
 
-            cause, confidence = self.investigate_incident(
-                incident["KPI_ID"]
+            if incident["INCIDENT_ID"] in existing:
+
+                skipped += 1
+
+                continue
+
+            kpi = kpis.loc[
+                kpis["KPI_ID"] == incident["KPI_ID"]
+            ]
+
+            if kpi.empty:
+
+                continue
+
+            row = kpi.iloc[0]
+
+            cause, confidence = self.identify_root_cause(
+
+                row,
+
+                averages
+
             )
 
-            self.save_root_cause(
-                incident["INCIDENT_ID"],
-                cause,
-                confidence
-            )
+            results.append({
 
-            print(
-                f"""
-Incident ID : {incident['INCIDENT_ID']}
-KPI ID      : {incident['KPI_ID']}
-Type        : {incident['INCIDENT_TYPE']}
-Cause       : {cause}
-Confidence  : {confidence}
-"""
-            )
+                "incident_id": incident["INCIDENT_ID"],
+
+                "cause": cause,
+
+                "confidence": confidence
+
+            })
+
+            processed += 1
+
+        self.service.save_root_causes(results)
+
+        self.service.close()
 
         log_agent_activity(
+
             self.agent_name,
-            "Completed Root Cause Analysis"
+
+            f"Processed {processed} incidents"
+
         )
 
-        print(f"\n[{self.agent_name}] Completed")
+        print()
+
+        print("=" * 60)
+
+        print("Root Cause Analysis Completed")
+
+        print("=" * 60)
+
+        print(f"Open Incidents      : {len(incidents)}")
+
+        print(f"Processed           : {processed}")
+
+        print(f"Skipped             : {skipped}")
+
+        print(f"Inserted            : {len(results)}")
+
+        print("=" * 60)
+
+        print()
+
+        return results
 
 
 if __name__ == "__main__":
