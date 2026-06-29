@@ -1,8 +1,7 @@
-from services.snowflake_connection import get_connection
-from services.impact_service import ImpactService
-from services.audit_logger import log_agent_activity
+from collections import Counter
 
-import pandas as pd
+from services.audit_logger import log_agent_activity
+from services.impact_service import ImpactService
 
 
 class ImpactAgent:
@@ -13,33 +12,57 @@ class ImpactAgent:
 
         self.service = ImpactService()
 
-    def get_incidents(self):
+    def calculate_loss(
+        self,
+        row,
+        average_revenue
+    ):
 
-        conn = get_connection()
+        revenue_gap = max(
+            0,
+            average_revenue - row["REVENUE"]
+        )
 
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-        """
+        inventory_penalty = 0
 
-        df = pd.read_sql(query, conn)
+        churn_penalty = 0
 
-        conn.close()
+        if row["INVENTORY"] < 250:
 
-        return df
+            inventory_penalty = 1000
 
-    def calculate_severity(self, revenue_loss):
+        if row["CHURN_RATE"] > 5:
 
-        if revenue_loss > 5000:
+            churn_penalty = 500
+
+        return round(
+
+            revenue_gap
+
+            + inventory_penalty
+
+            + churn_penalty,
+
+            2
+
+        )
+
+    def calculate_severity(self, loss):
+
+        if loss > 7000:
+
             return "CRITICAL"
 
-        elif revenue_loss > 3000:
+        elif loss > 3000:
+
             return "HIGH"
 
-        elif revenue_loss > 1000:
+        elif loss > 1000:
+
             return "MEDIUM"
 
         else:
+
             return "LOW"
 
     def run(self):
@@ -47,70 +70,138 @@ class ImpactAgent:
         print(f"\n[{self.agent_name}] Started")
 
         log_agent_activity(
+
             self.agent_name,
-            "Impact Analysis Started"
+
+            "Started Impact Analysis"
+
         )
 
-        avg_revenue = self.service.get_historical_average_revenue()
+        incidents = self.service.get_open_incidents()
 
-        incidents = self.get_incidents()
+        kpis = self.service.get_all_kpis()
 
-        impact_results = []
+        average_revenue = self.service.get_average_revenue()
+
+        existing = self.service.get_existing_impacts()
+
+        results = []
+
+        processed = 0
+
+        skipped = 0
+
+        severity_counter = Counter()
+
+        total_loss = 0
 
         for _, incident in incidents.iterrows():
 
-            actual_revenue = self.service.get_revenue_for_date(
-                incident["KPI_DATE"]
-            )
+            if incident["INCIDENT_ID"] in existing:
 
-            revenue_loss = max(
-                0,
-                avg_revenue - actual_revenue
+                skipped += 1
+
+                continue
+
+            kpi = kpis.loc[
+                kpis["KPI_ID"] == incident["KPI_ID"]
+            ]
+
+            if kpi.empty:
+
+                continue
+
+            row = kpi.iloc[0]
+
+            loss = self.calculate_loss(
+                row,
+                average_revenue
             )
 
             severity = self.calculate_severity(
-                revenue_loss
+                loss
             )
 
-            self.service.save_impact_analysis(
-                incident["INCIDENT_ID"],
-                revenue_loss,
-                severity
-            )
+            severity_counter[severity] += 1
 
-            result = {
+            total_loss += loss
+
+            results.append({
+
                 "incident_id": incident["INCIDENT_ID"],
-                "incident_type": incident["INCIDENT_TYPE"],
-                "estimated_loss": revenue_loss,
+
+                "estimated_loss": loss,
+
                 "severity": severity
-            }
 
-            impact_results.append(result)
+            })
 
-            print(
-                f"""
-Incident: {incident['INCIDENT_ID']}
-Type: {incident['INCIDENT_TYPE']}
-Revenue Loss: {revenue_loss}
-Severity: {severity}
-"""
+            processed += 1
+
+        self.service.save_impacts(results)
+
+        self.service.close()
+
+        average_loss = 0
+
+        if processed > 0:
+
+            average_loss = round(
+                total_loss / processed,
+                2
             )
 
         log_agent_activity(
+
             self.agent_name,
-            "Impact Analysis Completed"
+
+            f"Processed {processed} incidents"
+
         )
 
-        print(f"\n[{self.agent_name}] Completed")
+        print()
 
-        return impact_results
+        print("=" * 60)
+
+        print("Impact Analysis Completed")
+
+        print("=" * 60)
+
+        print(f"Open Incidents : {len(incidents)}")
+
+        print(f"Processed      : {processed}")
+
+        print(f"Skipped        : {skipped}")
+
+        print(f"Inserted       : {len(results)}")
+
+        print(f"Average Loss   : {average_loss}")
+
+        print()
+
+        print("Severity Distribution")
+
+        print("----------------------")
+
+        for level in [
+
+            "CRITICAL",
+
+            "HIGH",
+
+            "MEDIUM",
+
+            "LOW"
+
+        ]:
+
+            print(f"{level:<10}: {severity_counter[level]}")
+
+        print("=" * 60)
+
+        return results
 
 
 if __name__ == "__main__":
 
-    reports = ImpactAgent().run()
-
-    print("\n===== IMPACT REPORT =====")
-
-    for report in reports:
-        print(report)
+    ImpactAgent().run()

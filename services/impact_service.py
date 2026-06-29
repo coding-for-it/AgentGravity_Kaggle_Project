@@ -1,77 +1,109 @@
-from services.snowflake_connection import get_connection
 import pandas as pd
+
+from services.snowflake_connection import get_connection
 
 
 class ImpactService:
 
-    def get_historical_average_revenue(self):
+    def __init__(self):
 
-        conn = get_connection()
+        self.conn = get_connection()
+
+    def get_open_incidents(self):
+
+        query = """
+        SELECT
+            INCIDENT_ID,
+            KPI_ID,
+            INCIDENT_TYPE
+        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
+        WHERE STATUS='OPEN'
+        ORDER BY INCIDENT_ID
+        """
+
+        return pd.read_sql(query, self.conn)
+
+    def get_all_kpis(self):
+
+        query = """
+        SELECT
+            KPI_ID,
+            REVENUE,
+            INVENTORY,
+            CHURN_RATE
+        FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
+        """
+
+        return pd.read_sql(query, self.conn)
+
+    def get_average_revenue(self):
 
         query = """
         SELECT AVG(REVENUE) AS AVG_REVENUE
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
         """
 
-        df = pd.read_sql(query, conn)
-
-        conn.close()
+        df = pd.read_sql(query, self.conn)
 
         return float(df.iloc[0]["AVG_REVENUE"])
 
-    def get_revenue_for_date(self, kpi_date):
+    def get_existing_impacts(self):
 
-        conn = get_connection()
-
-        query = f"""
-        SELECT REVENUE
-        FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
-        WHERE KPI_DATE = '{kpi_date}'
+        query = """
+        SELECT INCIDENT_ID
+        FROM AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS
         """
 
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, self.conn)
 
-        conn.close()
+        return set(df["INCIDENT_ID"])
 
-        return float(df.iloc[0]["REVENUE"])
+    def save_impacts(self, results):
 
-    def save_impact_analysis(
-        self,
-        incident_id,
-        revenue_loss,
-        severity
-    ):
+        if len(results) == 0:
 
-        conn = get_connection()
+            print("No new impact records.")
 
-        cursor = conn.cursor()
+            return
 
-        cursor.execute(
-            """
-            INSERT INTO
-            AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS
-            (
-                INCIDENT_ID,
-                ESTIMATED_REVENUE_LOSS,
-                BUSINESS_SEVERITY,
-                CREATED_AT
-            )
-            VALUES
-            (
-                %s,
-                %s,
-                %s,
-                CURRENT_TIMESTAMP()
-            )
-            """,
-            (
-                incident_id,
-                revenue_loss,
-                severity
-            )
+        cursor = self.conn.cursor()
+
+        query = """
+        INSERT INTO
+        AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS
+        (
+            INCIDENT_ID,
+            ESTIMATED_REVENUE_LOSS,
+            BUSINESS_SEVERITY,
+            CREATED_AT
         )
+        VALUES
+        (
+            %s,
+            %s,
+            %s,
+            CURRENT_TIMESTAMP()
+        )
+        """
 
-        conn.commit()
+        values = [
+
+            (
+                row["incident_id"],
+                row["estimated_loss"],
+                row["severity"]
+            )
+
+            for row in results
+
+        ]
+
+        cursor.executemany(query, values)
+
+        self.conn.commit()
 
         cursor.close()
-        conn.close()
+
+    def close(self):
+
+        self.conn.close()
