@@ -1,117 +1,155 @@
+from services.executive_service import ExecutiveService
 from services.antigravity_service import AntigravityService
-from agents.impact_agent import ImpactAgent
-from services.snowflake_connection import get_connection
-
-import pandas as pd
+from services.audit_logger import log_agent_activity
 
 
 class ExecutiveAgent:
 
     def __init__(self):
 
-        self.impact_agent = ImpactAgent()
+        self.agent_name = "Executive Agent"
 
-        self.antigravity = AntigravityService()
+        self.service = ExecutiveService()
 
-    def get_root_cause(self, incident_id):
+        self.ai = AntigravityService()
 
-        conn = get_connection()
+    def build_business_summary(self, df):
 
-        query = f"""
-        SELECT CAUSE_NAME
-        FROM AGENTGRAVITY.INCIDENTS.ROOT_CAUSES
-        WHERE INCIDENT_ID = {incident_id}
-        ORDER BY CONFIDENCE_SCORE DESC
-        LIMIT 1
-        """
+        total_incidents = len(df)
 
-        df = pd.read_sql(query, conn)
+        incident_counts = (
+            df["INCIDENT_TYPE"]
+            .value_counts()
+            .to_dict()
+        )
 
-        conn.close()
+        root_causes = (
+            df["CAUSE_NAME"]
+            .value_counts()
+            .to_dict()
+        )
 
-        if df.empty:
-            return "Unknown Cause"
+        severity_counts = (
+            df["BUSINESS_SEVERITY"]
+            .value_counts()
+            .to_dict()
+        )
 
-        return df.iloc[0]["CAUSE_NAME"]
+        avg_loss = round(
+            df["ESTIMATED_REVENUE_LOSS"].mean(),
+            2
+        )
+
+        total_loss = round(
+            df["ESTIMATED_REVENUE_LOSS"].sum(),
+            2
+        )
+
+        max_loss = round(
+            df["ESTIMATED_REVENUE_LOSS"].max(),
+            2
+        )
+
+        summary = f"""
+BUSINESS SUMMARY
+
+Total Incidents:
+{total_incidents}
+
+Incident Distribution:
+{incident_counts}
+
+Root Cause Distribution:
+{root_causes}
+
+Business Severity:
+{severity_counts}
+
+Average Revenue Loss:
+${avg_loss}
+
+Maximum Revenue Loss:
+${max_loss}
+
+Total Estimated Revenue Loss:
+${total_loss}
+"""
+
+        return summary
+
+    def determine_priority(self, df):
+
+        critical = (
+            df["BUSINESS_SEVERITY"] == "CRITICAL"
+        ).sum()
+
+        if critical >= 100:
+            return "CRITICAL"
+
+        if critical >= 50:
+            return "HIGH"
+
+        return "MEDIUM"
 
     def run(self):
 
-        impacts = self.impact_agent.run()
+        print("\n" + "=" * 60)
+        print("Executive Agent Started")
+        print("=" * 60)
 
-        executive_reports = []
+        log_agent_activity(
+            self.agent_name,
+            "Executive Report Started"
+        )
 
-        for item in impacts:
+        df = self.service.get_business_summary()
 
-            incident_id = item["incident_id"]
+        if df.empty:
 
-            incident_type = item["incident_type"]
+            print("\nNo business data found.")
 
-            impact = item["estimated_loss"]
+            self.service.close()
 
-            root_cause = self.get_root_cause(
-                incident_id
+            return
+
+        business_summary = self.build_business_summary(df)
+
+        print("\nSending Business Summary to Gemini...\n")
+
+        executive_briefing = (
+            self.ai.generate_executive_briefing(
+                business_summary
             )
+        )
 
-            investigation = (
-                self.antigravity
-                .generate_investigation_plan(
-                    incident_type
-                )
-            )
+        priority = self.determine_priority(df)
 
-            recovery = (
-                self.antigravity
-                .generate_recovery_plan(
-                    root_cause
-                )
-            )
+        self.service.save_executive_report(
+            executive_briefing,
+            "Refer Executive Summary",
+            priority
+        )
 
-            summary = (
-                self.antigravity
-                .generate_executive_summary(
-                    incident_type,
-                    root_cause,
-                    impact
-                )
-            )
+        log_agent_activity(
+            self.agent_name,
+            "Executive Report Generated"
+        )
 
-            executive_reports.append({
+        self.service.close()
 
-                "incident_id": incident_id,
+        print("\n" + "=" * 60)
+        print("EXECUTIVE BRIEFING")
+        print("=" * 60)
 
-                "incident_type": incident_type,
+        print(executive_briefing)
 
-                "root_cause": root_cause,
+        print("\nPriority :", priority)
 
-                "impact": impact,
+        print("\nExecutive report saved successfully.")
 
-                "investigation": investigation,
-
-                "recovery": recovery,
-
-                "summary": summary
-
-            })
-
-        return executive_reports
+        print("\n" + "=" * 60)
 
 
 if __name__ == "__main__":
 
-    reports = ExecutiveAgent().run()
-
-    for report in reports:
-
-        print("\n" + "=" * 60)
-
-        print(report["summary"])
-
-        print("\nInvestigation Plan:")
-
-        for step in report["investigation"]:
-
-            print("-", step)
-
-        print("\nRecovery Plan:")
-
-        print(report["recovery"])
+    ExecutiveAgent().run()

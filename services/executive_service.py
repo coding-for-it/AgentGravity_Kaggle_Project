@@ -1,29 +1,71 @@
+import pandas as pd
+
 from services.snowflake_connection import get_connection
 
 
 class ExecutiveService:
 
-    def save_report(
+    def __init__(self):
+
+        self.conn = get_connection()
+
+    def get_business_summary(self):
+
+        query = """
+        SELECT
+            i.INCIDENT_TYPE,
+            rc.CAUSE_NAME,
+            ia.BUSINESS_SEVERITY,
+            ia.ESTIMATED_REVENUE_LOSS
+        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS i
+
+        INNER JOIN AGENTGRAVITY.INCIDENTS.ROOT_CAUSES rc
+            ON i.INCIDENT_ID = rc.INCIDENT_ID
+
+        INNER JOIN AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS ia
+            ON i.INCIDENT_ID = ia.INCIDENT_ID
+        """
+
+        return pd.read_sql(query, self.conn)
+
+    def get_master_incident_id(self):
+
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            SELECT MIN(INCIDENT_ID)
+            FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
+        """)
+
+        incident_id = cursor.fetchone()[0]
+
+        cursor.close()
+
+        return int(incident_id)
+
+    def save_executive_report(
         self,
-        incident_id,
         summary,
-        action,
+        recommended_action,
         priority
     ):
 
-        conn = get_connection()
+        cursor = self.conn.cursor()
 
-        cursor = conn.cursor()
+        incident_id = self.get_master_incident_id()
+
+        cursor.execute("""
+            DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+        """)
 
         cursor.execute(
             """
-            INSERT INTO
-            AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+            INSERT INTO AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
             (
                 INCIDENT_ID,
                 EXECUTIVE_SUMMARY,
                 RECOMMENDED_ACTION,
-                PRIORITY,
+                BUSINESS_PRIORITY,
                 CREATED_AT
             )
             VALUES
@@ -38,12 +80,15 @@ class ExecutiveService:
             (
                 incident_id,
                 summary,
-                action,
+                recommended_action,
                 priority
             )
         )
 
-        conn.commit()
+        self.conn.commit()
 
         cursor.close()
-        conn.close()
+
+    def close(self):
+
+        self.conn.close()

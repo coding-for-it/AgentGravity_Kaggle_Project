@@ -1,80 +1,66 @@
+import os
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+
+print(api_key[:10])   # temporarily add this
+
+client = genai.Client(api_key=api_key)
+
 class AntigravityService:
 
-    def generate_investigation_plan(
-        self,
-        incident_type
-    ):
+    def __init__(self):
 
-        plans = {
+        api_key = os.getenv("GEMINI_API_KEY")
 
-            "Revenue Drop": [
-                "Analyze customer demand",
-                "Review marketing campaigns",
-                "Check inventory availability",
-                "Compare historical revenue"
-            ],
+        if not api_key:
+            raise Exception("GEMINI_API_KEY not found.")
 
-            "High Churn": [
-                "Analyze customer complaints",
-                "Review support tickets",
-                "Check product quality",
-                "Evaluate competitor activity"
-            ],
-
-            "Inventory Risk": [
-                "Review supplier delays",
-                "Check procurement process",
-                "Analyze inventory turnover",
-                "Evaluate demand spikes"
-            ]
-        }
-
-        return plans.get(
-            incident_type,
-            ["General investigation required"]
+        self.client = genai.Client(
+            api_key=api_key
         )
 
-    def generate_recovery_plan(
-        self,
-        root_cause
-    ):
+        self.model = "gemini-2.5-flash"
 
-        plans = {
+    def generate_executive_briefing(self, business_summary):
 
-            "Customer Demand Drop":
-                "Launch retention campaign",
+        prompt = f"""
+You are the Chief Strategy Officer of a large retail company.
 
-            "Customer Satisfaction Issue":
-                "Improve customer support",
+Below is today's business intelligence summary.
 
-            "Inventory Shortage":
-                "Increase procurement volume"
-        }
+{business_summary}
 
-        return plans.get(
-            root_cause,
-            "Perform detailed business review"
-        )
+Write a professional executive briefing.
 
-    def generate_executive_summary(
-        self,
-        incident,
-        root_cause,
-        impact
-    ):
+The response must contain exactly these sections.
 
-        return f"""
-EXECUTIVE SUMMARY
+Executive Summary
 
-Incident:
-{incident}
+Top Business Risks
 
-Root Cause:
-{root_cause}
+Business Impact
 
-Estimated Impact:
-${impact}
+Recommended Actions
 
-Recommended Action:
-{self.generate_recovery_plan(root_cause)}
+Priority Level
+
+Keep the response under 350 words.
+
+Do not use markdown.
+
+Write like a McKinsey / Deloitte consultant.
 """
+
+        response = self.client.models.generate_content(
+
+            model=self.model,
+
+            contents=prompt
+
+        )
+
+        return response.text.strip()
