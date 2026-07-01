@@ -1,3 +1,5 @@
+import time
+
 from agents.impact_agent import ImpactAgent
 
 
@@ -9,12 +11,36 @@ class ImpactADKAgent:
 
     def execute(self):
 
-        print("\n[ADK] Running Impact Agent")
+        print("\n" + "=" * 60)
+        print("ADK → Impact Agent")
+        print("=" * 60)
 
-        agent = ImpactAgent()
+        start = time.time()
 
-        agent.run()
+        try:
 
-        return {
-            "status": "completed"
-        }
+            ImpactAgent().run()
+
+            elapsed = round(time.time() - start, 2)
+
+            return {
+
+                "agent": self.name,
+
+                "status": "SUCCESS",
+
+                "execution_time": elapsed
+
+            }
+
+        except Exception as e:
+
+            return {
+
+                "agent": self.name,
+
+                "status": "FAILED",
+
+                "error": str(e)
+
+            }

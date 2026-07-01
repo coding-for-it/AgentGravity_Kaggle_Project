@@ -1,25 +1,25 @@
 import time
 
-from agents.monitoring_agent import MonitoringAgent
+from agents.recovery_agent import RecoveryAgent
 
 
-class MonitoringADKAgent:
+class RecoveryADKAgent:
 
     def __init__(self):
 
-        self.name = "Monitoring ADK Agent"
+        self.name = "Recovery ADK Agent"
 
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Monitoring Agent")
+        print("ADK → Recovery Agent")
         print("=" * 60)
 
         start = time.time()
 
         try:
 
-            result = MonitoringAgent().run()
+            RecoveryAgent().run()
 
             elapsed = round(time.time() - start, 2)
 
@@ -29,9 +29,7 @@ class MonitoringADKAgent:
 
                 "status": "SUCCESS",
 
-                "execution_time": elapsed,
-
-                "result": result
+                "execution_time": elapsed
 
             }
 

@@ -1,25 +1,33 @@
-from services.snowflake_connection import get_connection
+import time
+
 import pandas as pd
+
+from services.snowflake_connection import get_connection
 
 
 class AnalyticsEngine:
 
-    def __init__(self):
-        pass
-
     def get_kpi_data(self):
+
+        start = time.time()
 
         conn = get_connection()
 
         query = """
-        SELECT *
+        SELECT
+            KPI_ID,
+            KPI_DATE,
+            REVENUE,
+            CHURN_RATE,
+            INVENTORY
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
-        ORDER BY KPI_DATE
         """
 
         df = pd.read_sql(query, conn)
 
         conn.close()
+
+        print(f"KPI data loaded in {time.time()-start:.2f} sec")
 
         return df
 
@@ -53,51 +61,52 @@ class AnalyticsEngine:
 
         avg_revenue = df["REVENUE"].mean()
 
-        for _, row in df.iterrows():
+        revenue_df = df[df["REVENUE"] < avg_revenue * 0.75]
 
-            if row["REVENUE"] < avg_revenue * 0.75:
+        churn_df = df[df["CHURN_RATE"] > 5]
 
-                incidents.append({
+        inventory_df = df[df["INVENTORY"] < 250]
 
-                    "kpi_id": int(row["KPI_ID"]),
+        for _, row in revenue_df.iterrows():
 
-                    "incident_type": "Revenue Drop",
+            incidents.append({
 
-                    "severity": "HIGH",
+                "kpi_id": int(row["KPI_ID"]),
 
-                    "description":
-                    f"Revenue dropped to {row['REVENUE']}"
+                "incident_type": "Revenue Drop",
 
-                })
+                "severity": "HIGH",
 
-            if row["CHURN_RATE"] > 5:
+                "description": f"Revenue dropped to {row['REVENUE']}"
 
-                incidents.append({
+            })
 
-                    "kpi_id": int(row["KPI_ID"]),
+        for _, row in churn_df.iterrows():
 
-                    "incident_type": "High Churn",
+            incidents.append({
 
-                    "severity": "HIGH",
+                "kpi_id": int(row["KPI_ID"]),
 
-                    "description":
-                    f"Churn increased to {row['CHURN_RATE']}%"
+                "incident_type": "High Churn",
 
-                })
+                "severity": "HIGH",
 
-            if row["INVENTORY"] < 250:
+                "description": f"Churn increased to {row['CHURN_RATE']}%"
 
-                incidents.append({
+            })
 
-                    "kpi_id": int(row["KPI_ID"]),
+        for _, row in inventory_df.iterrows():
 
-                    "incident_type": "Inventory Risk",
+            incidents.append({
 
-                    "severity": "MEDIUM",
+                "kpi_id": int(row["KPI_ID"]),
 
-                    "description":
-                    f"Inventory reduced to {row['INVENTORY']}"
+                "incident_type": "Inventory Risk",
 
-                })
+                "severity": "MEDIUM",
+
+                "description": f"Inventory reduced to {row['INVENTORY']}"
+
+            })
 
         return incidents

@@ -1,5 +1,8 @@
 from services.analytics_engine import AnalyticsEngine
-from services.incident_service import save_incidents
+from services.incident_service import (
+    clear_previous_workflow,
+    save_incidents
+)
 from services.audit_logger import log_agent_activity
 
 
@@ -20,41 +23,38 @@ class MonitoringAgent:
             "Monitoring Started"
         )
 
+        clear_previous_workflow()
+
+        print("Loading KPI data...")
         df = self.engine.get_kpi_data()
 
-        health_score = (
-            self.engine.calculate_business_health_score(df)
-        )
+        print("Calculating Business Health Score...")
+        health_score = self.engine.calculate_business_health_score(df)
 
-        incidents = (
-            self.engine.detect_incidents(df)
-        )
+        print("Detecting Incidents...")
+        incidents = self.engine.detect_incidents(df)
 
+        print(f"Incidents Found: {len(incidents)}")
+
+        print("Saving Incidents...")
         save_incidents(incidents)
+
+        print("Incidents Saved.")
 
         log_agent_activity(
             self.agent_name,
             f"Detected {len(incidents)} incidents"
         )
 
-        print(
-            f"\nBusiness Health Score: {health_score}"
-        )
-
-        print(
-            f"Detected Incidents: {len(incidents)}"
-        )
+        print(f"\nBusiness Health Score: {health_score}")
+        print(f"Detected Incidents: {len(incidents)}")
 
         print(f"\n[{self.agent_name}] Completed")
 
         return {
-
             "health_score": health_score,
-
             "incident_count": len(incidents),
-
             "incidents": incidents
-
         }
 
 

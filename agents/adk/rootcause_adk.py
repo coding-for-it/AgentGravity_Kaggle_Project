@@ -1,3 +1,5 @@
+import time
+
 from agents.root_cause_agent import RootCauseAgent
 
 
@@ -9,12 +11,36 @@ class RootCauseADKAgent:
 
     def execute(self):
 
-        print("\n[ADK] Running Root Cause Agent")
+        print("\n" + "=" * 60)
+        print("ADK → Root Cause Agent")
+        print("=" * 60)
 
-        agent = RootCauseAgent()
+        start = time.time()
 
-        agent.run()
+        try:
 
-        return {
-            "status": "completed"
-        }
+            RootCauseAgent().run()
+
+            elapsed = round(time.time() - start, 2)
+
+            return {
+
+                "agent": self.name,
+
+                "status": "SUCCESS",
+
+                "execution_time": elapsed
+
+            }
+
+        except Exception as e:
+
+            return {
+
+                "agent": self.name,
+
+                "status": "FAILED",
+
+                "error": str(e)
+
+            }

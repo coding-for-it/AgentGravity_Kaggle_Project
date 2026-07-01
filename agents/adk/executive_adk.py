@@ -1,3 +1,5 @@
+import time
+
 from agents.executive_agent import ExecutiveAgent
 
 
@@ -9,12 +11,36 @@ class ExecutiveADKAgent:
 
     def execute(self):
 
-        print("\n[ADK] Running Executive Agent")
+        print("\n" + "=" * 60)
+        print("ADK → Executive Agent")
+        print("=" * 60)
 
-        agent = ExecutiveAgent()
+        start = time.time()
 
-        agent.run()
+        try:
 
-        return {
-            "status": "completed"
-        }
+            ExecutiveAgent().run()
+
+            elapsed = round(time.time() - start, 2)
+
+            return {
+
+                "agent": self.name,
+
+                "status": "SUCCESS",
+
+                "execution_time": elapsed
+
+            }
+
+        except Exception as e:
+
+            return {
+
+                "agent": self.name,
+
+                "status": "FAILED",
+
+                "error": str(e)
+
+            }
