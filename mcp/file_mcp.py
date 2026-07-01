@@ -1,38 +1,46 @@
-import os
+import pandas as pd
 
 
 class FileMCP:
 
-    def save_report(self, filename, content):
+    def read_csv(self, filepath):
 
-        os.makedirs("reports", exist_ok=True)
+        print(f"\n[MCP] Reading file: {filepath}")
 
-        filepath = os.path.join(
-            "reports",
-            filename
+        return pd.read_csv(filepath)
+
+    def save_csv(self, df, filepath):
+
+        df.to_csv(
+            filepath,
+            index=False
         )
 
-        with open(
-            filepath,
-            "w",
-            encoding="utf-8"
-        ) as file:
+        print(f"[MCP] Saved file: {filepath}")
 
-            file.write(content)
+    def dataframe_summary(self, df):
 
-        return filepath
+        return {
 
-    def read_report(self, filename):
+            "rows": len(df),
 
-        filepath = os.path.join(
-            "reports",
-            filename
-        )
+            "columns": len(df.columns),
 
-        with open(
-            filepath,
-            "r",
-            encoding="utf-8"
-        ) as file:
+            "column_names": list(df.columns),
 
-            return file.read()
+            "missing_values":
+                int(df.isna().sum().sum()),
+
+            "memory_mb":
+                round(
+                    df.memory_usage(deep=True).sum()
+                    / 1024
+                    / 1024,
+                    2
+                )
+
+        }
+
+    def preview(self, df, rows=5):
+
+        return df.head(rows)

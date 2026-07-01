@@ -1,53 +1,91 @@
-from services.snowflake_connection import get_connection
 import pandas as pd
+
+from services.snowflake_connection import get_connection
 
 
 class SnowflakeMCP:
 
-    def __init__(self):
-
-        self.conn = get_connection()
-
     def execute_query(self, query):
 
-        return pd.read_sql(query, self.conn)
+        conn = get_connection()
 
-    def get_kpi_data(self):
+        df = pd.read_sql(
+            query,
+            conn
+        )
 
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
-        ORDER BY KPI_DATE
+        conn.close()
+
+        return df
+
+    def execute_dml(
+        self,
+        query,
+        values=None
+    ):
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+        if values:
+
+            cursor.execute(
+                query,
+                values
+            )
+
+        else:
+
+            cursor.execute(query)
+
+        conn.commit()
+
+        cursor.close()
+
+        conn.close()
+
+    def fetch_scalar(self, query):
+
+        conn = get_connection()
+
+        cursor = conn.cursor()
+
+        cursor.execute(query)
+
+        value = cursor.fetchone()[0]
+
+        cursor.close()
+
+        conn.close()
+
+        return value
+
+    def table_count(self, table_name):
+
+        query = f"""
+        SELECT COUNT(*)
+        FROM {table_name}
         """
 
-        return self.execute_query(query)
+        return self.fetch_scalar(query)
 
-    def get_incidents(self):
+    def table_exists(self, table_name):
 
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-        ORDER BY INCIDENT_ID
-        """
+        conn = get_connection()
 
-        return self.execute_query(query)
+        cursor = conn.cursor()
 
-    def get_root_causes(self):
+        cursor.execute(
+            f"""
+            SHOW TABLES LIKE '{table_name.split('.')[-1]}'
+            """
+        )
 
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.INCIDENTS.ROOT_CAUSES
-        ORDER BY ID
-        """
+        exists = cursor.fetchone() is not None
 
-        return self.execute_query(query)
+        cursor.close()
 
-    def get_audit_logs(self):
+        conn.close()
 
-        query = """
-        SELECT *
-        FROM AGENTGRAVITY.SECURITY.AGENT_AUDIT_LOG
-        ORDER BY ID
-        """
-
-        return self.execute_query(query)
+        return exists
