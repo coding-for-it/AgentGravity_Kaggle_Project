@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -8,6 +9,7 @@ if PROJECT_ROOT not in sys.path:
 
 from services.recovery_service import RecoveryService
 from services.audit_logger import log_agent_activity
+from services.logger import get_logger
 
 
 class RecoveryAgent:
@@ -15,6 +17,8 @@ class RecoveryAgent:
     def __init__(self):
 
         self.agent_name = "Recovery Agent"
+
+        self.logger = get_logger("recovery")
 
         self.service = RecoveryService()
 
@@ -114,96 +118,145 @@ class RecoveryAgent:
 
     def run(self):
 
-        print("\n" + "=" * 60)
-        print("Recovery Agent Started")
-        print("=" * 60)
+        try:
 
-        log_agent_activity(
-            self.agent_name,
-            "Recovery Strategy Started"
-        )
+            print("\n" + "=" * 60)
+            print("Recovery Agent Started")
+            print("=" * 60)
 
-        print("\nFetching latest executive report...")
+            self.logger.info("=" * 60)
+            self.logger.info("Recovery Agent Started")
 
-        df = self.service.get_executive_report()
+            log_agent_activity(
+                self.agent_name,
+                "Recovery Strategy Started"
+            )
 
-        print("\nExecutive Report Data:")
-        print(df)
+            self.logger.info("Loading executive report")
 
-        if df.empty:
+            print("\nFetching latest executive report...")
 
-            print("\nNo Executive Report Found.")
+            df = self.service.get_executive_report()
+
+            self.logger.info(
+                f"Loaded {len(df)} executive report(s)"
+            )
+
+            print("\nExecutive Report Data:")
+            print(df)
+
+            if df.empty:
+
+                self.logger.warning(
+                    "No Executive Report Found"
+                )
+
+                print("\nNo Executive Report Found.")
+
+                self.service.close()
+
+                return
+
+            print("\nExecutive report loaded successfully.")
+
+            executive_summary = df.iloc[0]["EXECUTIVE_SUMMARY"]
+
+            priority = df.iloc[0]["BUSINESS_PRIORITY"]
+
+            self.logger.info(
+                f"Business Priority: {priority}"
+            )
+
+            print(f"\nBusiness Priority : {priority}")
+
+            self.logger.info(
+                "Generating recovery strategy"
+            )
+
+            plan = self.build_recovery_plan(priority)
+
+            print("\nRecovery plan generated successfully.")
+
+            self.logger.info(
+                "Saving recovery plan to Snowflake"
+            )
+
+            self.service.save_recovery_plan(
+
+                executive_summary,
+
+                plan["immediate_actions"],
+
+                plan["short_term_actions"],
+
+                plan["long_term_actions"],
+
+                plan["expected_business_outcome"],
+
+                plan["success_metrics"],
+
+                plan["risk_level"]
+
+            )
+
+            self.logger.info(
+                "Recovery plan saved successfully"
+            )
+
+            print("\nRecovery plan saved into Snowflake.")
+
+            log_agent_activity(
+                self.agent_name,
+                "Recovery Strategy Generated"
+            )
 
             self.service.close()
 
-            return
+            print("\n" + "=" * 60)
+            print("RECOVERY PLAN")
+            print("=" * 60)
 
-        print("\nExecutive report loaded successfully.")
+            print("\nPriority :", priority)
 
-        executive_summary = df.iloc[0]["EXECUTIVE_SUMMARY"]
+            print("\nImmediate Actions")
+            print(plan["immediate_actions"])
 
-        priority = df.iloc[0]["BUSINESS_PRIORITY"]
+            print("\nShort Term Actions")
+            print(plan["short_term_actions"])
 
-        print(f"\nBusiness Priority : {priority}")
+            print("\nLong Term Actions")
+            print(plan["long_term_actions"])
 
-        plan = self.build_recovery_plan(priority)
+            print("\nExpected Outcome")
+            print(plan["expected_business_outcome"])
 
-        print("\nRecovery plan generated successfully.")
+            print("\nSuccess Metrics")
+            print(plan["success_metrics"])
 
-        self.service.save_recovery_plan(
+            print("\nRisk Level")
+            print(plan["risk_level"])
 
-            executive_summary,
+            print("\nRecovery plan saved successfully.")
 
-            plan["immediate_actions"],
+            print("\n" + "=" * 60)
 
-            plan["short_term_actions"],
+            self.logger.info("Recovery Agent Completed")
+            self.logger.info("=" * 60)
 
-            plan["long_term_actions"],
+        except Exception:
 
-            plan["expected_business_outcome"],
+            self.logger.exception(
+                "Unexpected Recovery Agent Error"
+            )
 
-            plan["success_metrics"],
+            print("\nUnexpected Recovery Agent Error\n")
 
-            plan["risk_level"]
+            traceback.print_exc()
 
-        )
-
-        print("\nRecovery plan saved into Snowflake.")
-
-        log_agent_activity(
-            self.agent_name,
-            "Recovery Strategy Generated"
-        )
-
-        self.service.close()
-
-        print("\n" + "=" * 60)
-        print("RECOVERY PLAN")
-        print("=" * 60)
-
-        print("\nPriority :", priority)
-
-        print("\nImmediate Actions")
-        print(plan["immediate_actions"])
-
-        print("\nShort Term Actions")
-        print(plan["short_term_actions"])
-
-        print("\nLong Term Actions")
-        print(plan["long_term_actions"])
-
-        print("\nExpected Outcome")
-        print(plan["expected_business_outcome"])
-
-        print("\nSuccess Metrics")
-        print(plan["success_metrics"])
-
-        print("\nRisk Level")
-        print(plan["risk_level"])
-
-        print("\nRecovery plan saved successfully.")
-
-        print("\n" + "=" * 60)
+            try:
+                self.service.close()
+            except:
+                pass
 
 
 if __name__ == "__main__":

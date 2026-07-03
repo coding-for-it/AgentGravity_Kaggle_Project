@@ -3,13 +3,12 @@ import sys
 import subprocess
 import time
 import re
-import datetime
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-
+from datetime import datetime
 # Add project root directory to path to resolve imports correctly
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.analytics_engine import AnalyticsEngine
@@ -590,6 +589,9 @@ def render_agent_console(script_path, button_label, spinner_msg, section_title="
                 proc.communicate()
 
                 if proc.returncode == 0:
+                    st.session_state.pipeline_status = "Completed"
+                    t.session_state.pipeline_time = f"{execution_time} sec"
+                    st.session_state.last_execution = datetime.now().strftime("%d %b %Y %I:%M:%S %p")
                     log_content += "\n[System] ✓ Agent completed successfully.\n"
                     log_placeholder.markdown(
                         f'<div class="terminal-window">{log_content}</div>',
@@ -611,65 +613,210 @@ def render_agent_console(script_path, button_label, spinner_msg, section_title="
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-
 def render_full_pipeline_console():
+
+    # ------------------------------
+    # Pipeline state
+    # ------------------------------
+    if "pipeline_running" not in st.session_state:
+        st.session_state.pipeline_running = False
+
+    if "pipeline_status" not in st.session_state:
+        st.session_state.pipeline_status = "Idle"
+
+    if "pipeline_time" not in st.session_state:
+        st.session_state.pipeline_time = "-"
+
+    if "last_execution" not in st.session_state:
+        st.session_state.last_execution = "-"
 
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown("### 🚀 Full AgentGravity Pipeline")
+    st.markdown(
+        "Run the complete AI pipeline from KPI monitoring to executive reporting and recovery planning."
+    )
 
-    if st.button("🚀 Run Full AgentGravity Pipeline", type="primary"):
+    if st.button("🚀 Run Full Pipeline", type="primary"):
 
-        log_placeholder = st.empty()
+        st.session_state.pipeline_running = True
+        st.session_state.pipeline_status = "Running"
 
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))
+        )
 
-        with st.spinner("Executing Full Pipeline..."):
+        progress_bar = st.progress(0)
 
-            try:
+        status_placeholder = st.empty()
 
-                log_content = ""
+        start_time = time.time()
 
-                proc = subprocess.Popen(
-                    [sys.executable, os.path.join(project_root, "main.py")],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    cwd=project_root
+        agent_status = {
+            "Monitoring": "⏳ Waiting",
+            "Root Cause": "⏳ Waiting",
+            "Impact": "⏳ Waiting",
+            "Executive": "⏳ Waiting",
+            "Recovery": "⏳ Waiting"
+        }
+
+        refresh_status(status_placeholder, agent_status)
+
+        try:
+
+            proc = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-u",
+                    os.path.join(project_root, "main.py")
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=project_root
+            )
+
+            while True:
+
+                line = proc.stdout.readline()
+
+                if not line:
+                    break
+
+                line = line.strip()
+
+                if "STEP 1" in line:
+
+                    agent_status["Monitoring"] = "⚙ Running"
+
+                    progress_bar.progress(10)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "[Monitoring Agent] Completed" in line:
+
+                    agent_status["Monitoring"] = "✅ Completed"
+
+                    progress_bar.progress(20)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "STEP 2" in line:
+
+                    agent_status["Root Cause"] = "⚙ Running"
+
+                    progress_bar.progress(30)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "Root Cause Analysis Completed" in line:
+
+                    agent_status["Root Cause"] = "✅ Completed"
+
+                    progress_bar.progress(45)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "STEP 3" in line:
+
+                    agent_status["Impact"] = "⚙ Running"
+
+                    progress_bar.progress(55)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "Impact Analysis Completed" in line:
+
+                    agent_status["Impact"] = "✅ Completed"
+
+                    progress_bar.progress(70)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "STEP 4" in line:
+
+                    agent_status["Executive"] = "⚙ Running"
+
+                    progress_bar.progress(80)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "EXECUTIVE AGENT COMPLETED SUCCESSFULLY" in line:
+
+                    agent_status["Executive"] = "✅ Completed"
+
+                    progress_bar.progress(90)
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "Recovery Agent Started" in line:
+
+                    agent_status["Recovery"] = "⚙ Running"
+
+                    refresh_status(status_placeholder, agent_status)
+
+                elif "Recovery plan saved successfully." in line:
+
+                    agent_status["Recovery"] = "✅ Completed"
+
+                    progress_bar.progress(100)
+
+                    refresh_status(status_placeholder, agent_status)
+
+            proc.wait()
+
+            execution_time = round(
+                time.time() - start_time,
+                2
+            )
+
+            if proc.returncode == 0:
+                st.session_state.pipeline_running = False
+                st.session_state.pipeline_status = "Completed"
+                st.session_state.pipeline_time = f"{execution_time} sec"
+                st.session_state.last_execution = datetime.now().strftime(
+                "%d %b %Y %I:%M:%S %p"
+                )
+                st.success(
+                    f"✅ Pipeline completed successfully in {execution_time} sec"
                 )
 
-                while True:
+                time.sleep(2)
 
-                    line = proc.stdout.readline()
+                st.rerun()
 
-                    if not line:
-                        break
+            else:
+                st.session_state.pipeline_running = False
+                st.session_state.pipeline_status = "Failed"
 
-                    log_content += line
+                st.error("❌ Pipeline execution failed.")
 
-                    log_placeholder.markdown(
-                        f'<div class="terminal-window">{log_content}</div>',
-                        unsafe_allow_html=True
-                    )
+        except Exception as e:
 
-                proc.wait()
-
-                if proc.returncode == 0:
-
-                    st.success("Pipeline completed successfully!")
-
-                    time.sleep(2)
-
-                    st.rerun()
-
-                else:
-
-                    st.error("Pipeline failed. See logs above.")
-
-            except Exception as e:
-
-                st.error(str(e))
+            st.error(f"Pipeline Error : {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+def refresh_status(placeholder, agent_status):
+
+    placeholder.markdown(
+        f"""
+### 🚦 Pipeline Progress
+
+**Pipeline Status:** {st.session_state.pipeline_status}
+
+**Last Execution:** {st.session_state.last_execution}
+
+**Execution Time:** {st.session_state.pipeline_time}
+
+| Agent | Status |
+|-------|--------|
+| 📈 Monitoring | {agent_status["Monitoring"]} |
+| 🔍 Root Cause | {agent_status["Root Cause"]} |
+| 💰 Business Impact | {agent_status["Impact"]} |
+| 📋 Executive | {agent_status["Executive"]} |
+| 🛠 Recovery | {agent_status["Recovery"]} |
+"""
+    )
 # ===========================================================
 # SECTION 6 — SIDEBAR
 # ===========================================================
@@ -1606,34 +1753,9 @@ elif page == "⚙ Operations Center":
     with status_cols[2]:
         render_kpi_card("Root Causes Diagnosed", f"{total_causes}", "Identified anomaly drivers", True, border_color="#8B5CF6")
 
-    # — Agent Registry —
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### Agent Registry")
-
-    agents_registry = [
-        {"icon": "📈", "name": "Monitoring Agent", "role": "KPI anomaly detection & incident logging", "script": "agents/monitoring_agent.py"},
-        {"icon": "🔍", "name": "Root Cause Agent", "role": "Diagnostic cause identification & confidence scoring", "script": "agents/root_cause_agent.py"},
-        {"icon": "💰", "name": "Business Impact Agent", "role": "Financial revenue loss estimation & severity classification", "script": "agents/impact_agent.py"},
-        {"icon": "📋", "name": "Executive Agent", "role": "Gemini-powered McKinsey-style executive report generation", "script": "agents/executive_agent.py"},
-        {"icon": "🛠", "name": "Recovery Agent", "role": "AI mitigation strategy & recovery plan formulation", "script": "agents/recovery_agent.py"},
-    ]
-
-    for agent in agents_registry:
-        st.markdown(f"""
-        <div class="agent-card">
-            <div>
-                <div class="agent-name">{agent['icon']} {agent['name']}</div>
-                <div class="agent-role">{agent['role']}</div>
-            </div>
-            <div style="font-size: 11px; color: #475569; font-family: monospace;">{agent['script']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # — Database Table Telemetry —
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### Snowflake Database Telemetry")
+    st.markdown("### 🗄 Snowflake Database Telemetry")
 
     if is_connected:
         try:
@@ -1641,63 +1763,150 @@ elif page == "⚙ Operations Center":
             cursor = conn.cursor()
 
             tables = [
-                ("BUSINESS.KPI_METRICS", "Historical and current KPI telemetry"),
-                ("INCIDENTS.INCIDENTS", "Logged system and business health anomalies"),
-                ("INCIDENTS.ROOT_CAUSES", "Diagnosed causes mapped to incidents"),
-                ("INCIDENTS.IMPACT_ANALYSIS", "Assessments of financial revenue loss"),
-                ("INCIDENTS.RECOVERY_PLAN", "Generated mitigation actions and risk playbooks"),
-                ("INCIDENTS.EXECUTIVE_REPORTS", "McKinsey consulting reports generated by Gemini"),
-                ("SECURITY.AGENT_AUDIT_LOG", "Background administrative execution audit trails"),
-            ]
+                (
+                    "BUSINESS.KPI_METRICS",
+                    "Business Data",
+                    "Historical KPI telemetry"
+                ),
 
-            row_data = []
-            for t_name, desc in tables:
+                (
+                    "INCIDENTS.INCIDENTS",
+                    "Incidents",
+                    "Business anomalies detected"
+                ),
+
+                (
+                    "INCIDENTS.ROOT_CAUSES",
+                    "Root Causes",
+                    "Diagnosed incident causes"
+                ),
+
+                (
+                    "INCIDENTS.IMPACT_ANALYSIS",
+                    "Impact Analysis",
+                    "Financial impact assessment"
+                ),
+
+                (
+                    "INCIDENTS.RECOVERY_PLAN",
+                    "Recovery Plans",
+                    "AI-generated recovery strategies"
+                ),
+
+                (
+                    "INCIDENTS.EXECUTIVE_REPORTS",
+                    "Executive Reports",
+                    "Gemini executive summaries"
+                ),
+
+                (
+                    "SECURITY.AGENT_AUDIT_LOG",
+                    "Audit Logs",
+                    "Agent execution history"
+                )
+
+             ]
+
+            rows = []
+
+            for table_path, display_name, description in tables:
                 try:
-                    cursor.execute(f"SELECT COUNT(*) FROM AGENTGRAVITY.{t_name}")
-                    cnt = cursor.fetchone()[0]
-                    row_data.append({"Table Name": t_name, "Row Count": cnt, "Description": desc})
-                except Exception as ex:
-                    row_data.append({"Table Name": t_name, "Row Count": "Error", "Description": f"Query failed: {ex}"})
+                    cursor.execute(
+                        f"SELECT COUNT(*) FROM AGENTGRAVITY.{table_path}"
+                    )
+
+                    count = cursor.fetchone()[0]
+
+                except Exception:
+                    count = "-"
+
+                rows.append({
+                    "Table": display_name,
+                    "Rows": count,
+                    "Description": description
+                })
 
             cursor.close()
             conn.close()
 
-            st.dataframe(pd.DataFrame(row_data), hide_index=True, use_container_width=True)
+            st.dataframe(
+                pd.DataFrame(rows),
+                hide_index=True,
+                use_container_width=True
+            )
 
         except Exception as e:
-            st.error(f"Error querying Snowflake metadata: {e}")
+            st.error(f"Snowflake Error: {e}")
+
     else:
-        st.warning("🔌 Snowflake Offline. Row counts unavailable. Configure credentials in `.env` to enable telemetry.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
+        st.warning(
+            "🔌 Snowflake Offline. Connect the database to view telemetry."
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     # — Audit Logs —
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### Agent Audit Log")
-    df_logs_all = load_audit_logs()
-    if not df_logs_all.empty:
-        st.dataframe(
-            df_logs_all,
-            column_config={
-                "LOG_ID": "Log ID",
-                "AGENT_NAME": "Agent Name",
-                "ACTION_PERFORMED": "Action Performed",
-                "EXECUTION_TIME": "Execution Timestamp"
-            },
-            hide_index=True,
-            use_container_width=True
-        )
-    else:
-        render_empty_state("📋", "No Audit Logs Found", "Agent activity logs will appear here after agents have been executed.")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("### 🤖 Agent Execution Summary")
 
+    df_logs_all = load_audit_logs()
+
+    if not df_logs_all.empty:
+        total_runs = len(df_logs_all)
+
+        latest_run = df_logs_all["EXECUTION_TIME"].max()
+
+        successful_agents = (
+            df_logs_all["AGENT_NAME"]
+            .nunique()
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            render_kpi_card(
+                "Log Entries",
+                str(total_runs),
+                "Execution history",
+                True,
+                border_color="#3B82F6"
+            )
+
+        with col2:
+            render_kpi_card(
+                "Agents Executed",
+                str(successful_agents),
+                "Pipeline components",
+                True,
+                border_color="#8B5CF6"
+            )
+
+        with col3:
+            render_kpi_card(
+                "Latest Run",
+                latest_run.strftime("%d %b %H:%M"),
+                "Most recent execution",
+                True,
+                border_color="#10B981"
+            )
+
+        st.success("✓ Agent audit logging is active.")
+
+    else:
+        render_empty_state(
+            "🤖",
+            "No Agent Runs Yet",
+            "Execute the pipeline to generate agent execution logs."
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     # — Full Pipeline (the ONLY place in the dashboard that runs the full pipeline) —
     render_full_pipeline_console()
 
 # ===========================================================
 # SECTION 9 — FOOTER
 # ===========================================================
-current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
 st.markdown(f"""
 <div style="text-align: center; margin-top: 50px; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05);">
     <p style="font-size: 11px; color: #64748B;">

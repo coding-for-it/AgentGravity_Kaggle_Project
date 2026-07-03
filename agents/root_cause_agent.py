@@ -8,6 +8,7 @@ if PROJECT_ROOT not in sys.path:
 
 from services.root_cause_service import RootCauseService
 from services.audit_logger import log_agent_activity
+from services.logger import get_logger
 
 
 class RootCauseAgent:
@@ -15,6 +16,8 @@ class RootCauseAgent:
     def __init__(self):
 
         self.agent_name = "Root Cause Agent"
+
+        self.logger = get_logger("rootcause")
 
         self.service = RootCauseService()
 
@@ -63,17 +66,23 @@ class RootCauseAgent:
 
         print(f"\n[{self.agent_name}] Started")
 
+        self.logger.info("=" * 60)
+        self.logger.info("Root Cause Agent Started")
+
         log_agent_activity(
-
             self.agent_name,
-
             "Started Root Cause Analysis"
-
         )
 
+        self.logger.info("Loading open incidents")
         incidents = self.service.get_open_incidents()
 
+        self.logger.info(f"Loaded {len(incidents)} open incidents")
+
+        self.logger.info("Loading KPI dataset")
         kpis = self.service.get_all_kpis()
+
+        self.logger.info(f"Loaded {len(kpis)} KPI records")
 
         averages = self.service.get_historical_averages()
 
@@ -98,17 +107,13 @@ class RootCauseAgent:
             ]
 
             if kpi.empty:
-
                 continue
 
             row = kpi.iloc[0]
 
             cause, confidence = self.identify_root_cause(
-
                 row,
-
                 averages
-
             )
 
             results.append({
@@ -123,7 +128,15 @@ class RootCauseAgent:
 
             processed += 1
 
+        self.logger.info(
+            f"Processed {processed} incidents"
+        )
+
         self.service.save_root_causes(results)
+
+        self.logger.info(
+            f"Inserted {len(results)} root causes into Snowflake"
+        )
 
         self.service.close()
 
@@ -154,6 +167,9 @@ class RootCauseAgent:
         print("=" * 60)
 
         print()
+
+        self.logger.info("Root Cause Agent Completed")
+        self.logger.info("=" * 60)
 
         return results
 

@@ -10,6 +10,7 @@ from collections import Counter
 
 from services.audit_logger import log_agent_activity
 from services.impact_service import ImpactService
+from services.logger import get_logger
 
 
 class ImpactAgent:
@@ -17,6 +18,8 @@ class ImpactAgent:
     def __init__(self):
 
         self.agent_name = "Impact Agent"
+
+        self.logger = get_logger("impact")
 
         self.service = ImpactService()
 
@@ -36,11 +39,9 @@ class ImpactAgent:
         churn_penalty = 0
 
         if row["INVENTORY"] < 250:
-
             inventory_penalty = 1000
 
         if row["CHURN_RATE"] > 5:
-
             churn_penalty = 500
 
         return round(
@@ -58,24 +59,23 @@ class ImpactAgent:
     def calculate_severity(self, loss):
 
         if loss > 7000:
-
             return "CRITICAL"
 
         elif loss > 3000:
-
             return "HIGH"
 
         elif loss > 1000:
-
             return "MEDIUM"
 
         else:
-
             return "LOW"
 
     def run(self):
 
         print(f"\n[{self.agent_name}] Started")
+
+        self.logger.info("=" * 60)
+        self.logger.info("Impact Agent Started")
 
         log_agent_activity(
 
@@ -85,11 +85,27 @@ class ImpactAgent:
 
         )
 
+        self.logger.info("Loading open incidents")
+
         incidents = self.service.get_open_incidents()
+
+        self.logger.info(
+            f"Loaded {len(incidents)} open incidents"
+        )
+
+        self.logger.info("Loading KPI data")
 
         kpis = self.service.get_all_kpis()
 
+        self.logger.info(
+            f"Loaded {len(kpis)} KPI records"
+        )
+
         average_revenue = self.service.get_average_revenue()
+
+        self.logger.info(
+            f"Average Revenue = {average_revenue}"
+        )
 
         existing = self.service.get_existing_impacts()
 
@@ -116,7 +132,6 @@ class ImpactAgent:
             ]
 
             if kpi.empty:
-
                 continue
 
             row = kpi.iloc[0]
@@ -146,7 +161,15 @@ class ImpactAgent:
 
             processed += 1
 
+        self.logger.info(
+            f"Processed {processed} incidents"
+        )
+
         self.service.save_impacts(results)
+
+        self.logger.info(
+            f"Inserted {len(results)} impact records into Snowflake"
+        )
 
         self.service.close()
 
@@ -158,6 +181,14 @@ class ImpactAgent:
                 total_loss / processed,
                 2
             )
+
+        self.logger.info(
+            f"Average Revenue Loss: {average_loss}"
+        )
+
+        self.logger.info(
+            f"Severity Distribution: {dict(severity_counter)}"
+        )
 
         log_agent_activity(
 
@@ -206,6 +237,9 @@ class ImpactAgent:
             print(f"{level:<10}: {severity_counter[level]}")
 
         print("=" * 60)
+
+        self.logger.info("Impact Agent Completed")
+        self.logger.info("=" * 60)
 
         return results
 
