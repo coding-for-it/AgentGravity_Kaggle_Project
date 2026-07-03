@@ -1,3 +1,11 @@
+import os
+import sys
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from services.recovery_service import RecoveryService
 from services.audit_logger import log_agent_activity
 
@@ -115,7 +123,12 @@ class RecoveryAgent:
             "Recovery Strategy Started"
         )
 
+        print("\nFetching latest executive report...")
+
         df = self.service.get_executive_report()
+
+        print("\nExecutive Report Data:")
+        print(df)
 
         if df.empty:
 
@@ -125,11 +138,17 @@ class RecoveryAgent:
 
             return
 
+        print("\nExecutive report loaded successfully.")
+
         executive_summary = df.iloc[0]["EXECUTIVE_SUMMARY"]
 
         priority = df.iloc[0]["BUSINESS_PRIORITY"]
 
+        print(f"\nBusiness Priority : {priority}")
+
         plan = self.build_recovery_plan(priority)
+
+        print("\nRecovery plan generated successfully.")
 
         self.service.save_recovery_plan(
 
@@ -148,6 +167,8 @@ class RecoveryAgent:
             plan["risk_level"]
 
         )
+
+        print("\nRecovery plan saved into Snowflake.")
 
         log_agent_activity(
             self.agent_name,

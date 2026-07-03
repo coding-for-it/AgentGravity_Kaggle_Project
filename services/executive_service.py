@@ -1,3 +1,4 @@
+import traceback
 import pandas as pd
 
 from services.snowflake_connection import get_connection
@@ -10,6 +11,8 @@ class ExecutiveService:
         self.conn = get_connection()
 
     def get_business_summary(self):
+
+        print("\nExecuting Business Summary Query...")
 
         query = """
         SELECT
@@ -26,22 +29,36 @@ class ExecutiveService:
             ON i.INCIDENT_ID = ia.INCIDENT_ID
         """
 
-        return pd.read_sql(query, self.conn)
+        df = pd.read_sql(query, self.conn)
+
+        print(f"Business Summary Rows Returned: {len(df)}")
+
+        return df
 
     def get_master_incident_id(self):
 
         cursor = self.conn.cursor()
 
-        cursor.execute("""
-            SELECT MIN(INCIDENT_ID)
-            FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-        """)
+        try:
 
-        incident_id = cursor.fetchone()[0]
+            cursor.execute("""
+                SELECT MIN(INCIDENT_ID)
+                FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
+            """)
 
-        cursor.close()
+            result = cursor.fetchone()
 
-        return int(incident_id)
+            if result is None or result[0] is None:
+                raise Exception("No Incident ID found in INCIDENTS table.")
+
+            incident_id = int(result[0])
+
+            print(f"Master Incident ID: {incident_id}")
+
+            return incident_id
+
+        finally:
+            cursor.close()
 
     def save_executive_report(
         self,
@@ -50,45 +67,84 @@ class ExecutiveService:
         priority
     ):
 
-        cursor = self.conn.cursor()
+        cursor = None
 
-        incident_id = self.get_master_incident_id()
+        try:
 
-        cursor.execute("""
-            DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
-        """)
+            print("\nEntering save_executive_report()")
 
-        cursor.execute(
-            """
-            INSERT INTO AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
-            (
-                INCIDENT_ID,
-                EXECUTIVE_SUMMARY,
-                RECOMMENDED_ACTION,
-                BUSINESS_PRIORITY,
-                CREATED_AT
+            if summary is None or str(summary).strip() == "":
+                raise Exception("Executive Summary is empty.")
+
+            cursor = self.conn.cursor()
+
+            incident_id = self.get_master_incident_id()
+
+            print(f"Incident ID : {incident_id}")
+            print(f"Priority    : {priority}")
+            print(f"Summary Length : {len(summary)}")
+
+            print("\nDeleting existing Executive Reports...")
+
+            cursor.execute("""
+                DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+            """)
+
+            print("Delete completed.")
+
+            print("\nExecuting INSERT...")
+
+            cursor.execute(
+                """
+                INSERT INTO AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+                (
+                    INCIDENT_ID,
+                    EXECUTIVE_SUMMARY,
+                    RECOMMENDED_ACTION,
+                    BUSINESS_PRIORITY,
+                    CREATED_AT
+                )
+                VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    CURRENT_TIMESTAMP()
+                )
+                """,
+                (
+                    incident_id,
+                    summary,
+                    recommended_action,
+                    priority
+                )
             )
-            VALUES
-            (
-                %s,
-                %s,
-                %s,
-                %s,
-                CURRENT_TIMESTAMP()
-            )
-            """,
-            (
-                incident_id,
-                summary,
-                recommended_action,
-                priority
-            )
-        )
 
-        self.conn.commit()
+            print("INSERT executed successfully.")
 
-        cursor.close()
+            self.conn.commit()
+
+            print("Commit successful.")
+            print("Executive Report saved successfully.")
+
+        except Exception as e:
+
+            print("\n==============================")
+            print("SAVE EXECUTIVE REPORT FAILED")
+            print("==============================")
+            print(f"Error Type : {type(e).__name__}")
+            print(f"Error      : {e}")
+            traceback.print_exc()
+
+            raise
+
+        finally:
+
+            if cursor is not None:
+                cursor.close()
 
     def close(self):
 
-        self.conn.close()
+        if self.conn:
+            self.conn.close()

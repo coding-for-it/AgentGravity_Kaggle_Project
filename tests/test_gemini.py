@@ -1,19 +1,16 @@
-from services.gemini_service import GeminiService
+import os
+from dotenv import load_dotenv
+from google import genai
 
+load_dotenv()
 
-service = GeminiService()
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
-prompt = """
-You are a Business Intelligence Assistant.
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="Say hello in one sentence."
+)
 
-A company experienced a revenue drop because of inventory shortage.
-
-Provide a short executive summary in less than 80 words.
-"""
-
-response = service.generate(prompt)
-
-print("\n")
-print("=" * 60)
-print(response)
-print("=" * 60)
+print(response.text)

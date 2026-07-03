@@ -1,3 +1,12 @@
+import os
+import sys
+import traceback
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from services.executive_service import ExecutiveService
 from services.antigravity_service import AntigravityService
 from services.audit_logger import log_agent_activity
@@ -93,61 +102,116 @@ ${total_loss}
 
     def run(self):
 
-        print("\n" + "=" * 60)
-        print("Executive Agent Started")
-        print("=" * 60)
+        try:
 
-        log_agent_activity(
-            self.agent_name,
-            "Executive Report Started"
-        )
+            print("\n" + "=" * 70)
+            print("EXECUTIVE AGENT STARTED")
+            print("=" * 70)
 
-        df = self.service.get_business_summary()
+            log_agent_activity(
+                self.agent_name,
+                "Executive Report Started"
+            )
 
-        if df.empty:
+            print("\nFetching business summary from Snowflake...")
 
-            print("\nNo business data found.")
+            df = self.service.get_business_summary()
+
+            print(f"Rows fetched: {len(df)}")
+
+            if df.empty:
+                print("\nNo business data found.")
+                self.service.close()
+                return
+
+            print("\nPreview:")
+            print(df.head())
+
+            business_summary = self.build_business_summary(df)
+
+            print("\nSending Business Summary to Gemini...")
+
+            try:
+
+                executive_briefing = self.ai.generate_executive_briefing(
+                    business_summary
+                )
+
+            except Exception:
+
+                print("\nGemini API failed.\n")
+                traceback.print_exc()
+                self.service.close()
+                return
+
+            if executive_briefing is None:
+
+                print("\nERROR: Gemini returned None.")
+                self.service.close()
+                return
+
+            executive_briefing = str(executive_briefing).strip()
+
+            if executive_briefing == "":
+
+                print("\nERROR: Gemini returned an empty response.")
+                self.service.close()
+                return
+
+            print("\nGemini Response Received Successfully.")
+            print("\n" + "=" * 70)
+            print("EXECUTIVE BRIEFING")
+            print("=" * 70)
+            print(executive_briefing)
+            print("=" * 70)
+
+            priority = self.determine_priority(df)
+
+            print(f"\nBusiness Priority : {priority}")
+
+            incident_id = self.service.get_master_incident_id()
+
+            print(f"Master Incident ID : {incident_id}")
+
+            print("\nSaving Executive Report to Snowflake...")
+
+            try:
+
+                self.service.save_executive_report(
+                    executive_briefing,
+                    "Refer Executive Summary",
+                    priority
+                )
+
+                print("\nExecutive Report saved successfully.")
+
+            except Exception:
+
+                print("\nSnowflake INSERT failed.\n")
+                traceback.print_exc()
+                self.service.close()
+                return
+
+            log_agent_activity(
+                self.agent_name,
+                "Executive Report Generated"
+            )
 
             self.service.close()
 
-            return
+            print("\n" + "=" * 70)
+            print("EXECUTIVE AGENT COMPLETED SUCCESSFULLY")
+            print("=" * 70)
 
-        business_summary = self.build_business_summary(df)
+        except Exception:
 
-        print("\nSending Business Summary to Gemini...\n")
+            print("\nUnexpected Executive Agent Error\n")
+            traceback.print_exc()
 
-        executive_briefing = (
-            self.ai.generate_executive_briefing(
-                business_summary
-            )
-        )
-
-        priority = self.determine_priority(df)
-
-        self.service.save_executive_report(
-            executive_briefing,
-            "Refer Executive Summary",
-            priority
-        )
-
-        log_agent_activity(
-            self.agent_name,
-            "Executive Report Generated"
-        )
-
-        self.service.close()
-
-        print("\n" + "=" * 60)
-        print("EXECUTIVE BRIEFING")
-        print("=" * 60)
-
-        print(executive_briefing)
-
-        print("\nPriority :", priority)
-
-        print("\nExecutive report saved successfully.")
-
-        print("\n" + "=" * 60)
+            try:
+                self.service.close()
+            except:
+                pass
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from agents.monitoring_agent import MonitoringAgent
 from agents.root_cause_agent import RootCauseAgent
 from agents.impact_agent import ImpactAgent
 from agents.executive_agent import ExecutiveAgent
-
+from agents.recovery_agent import RecoveryAgent
 
 def main():
 
@@ -25,6 +25,10 @@ def main():
     print("\nSTEP 4: Executive Agent")
     executive_agent = ExecutiveAgent()
     executive_agent.run()
+
+    print("\nSTEP 5: Recovery Agent")
+    recovery_agent = RecoveryAgent()
+    recovery_agent.run()
 
     print("\n" + "=" * 60)
     print("WORKFLOW COMPLETED")

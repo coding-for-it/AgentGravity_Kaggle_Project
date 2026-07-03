@@ -1,5 +1,4 @@
 import time
-
 import pandas as pd
 
 from services.snowflake_connection import get_connection
@@ -21,37 +20,48 @@ class AnalyticsEngine:
             CHURN_RATE,
             INVENTORY
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
+        ORDER BY KPI_DATE
         """
 
         df = pd.read_sql(query, conn)
 
         conn.close()
 
-        print(f"KPI data loaded in {time.time()-start:.2f} sec")
+        # ----------------------------------------
+        # Calculate Health Score
+        # ----------------------------------------
+        df["HEALTH_SCORE"] = df.apply(
+            self.calculate_daily_health,
+            axis=1
+        )
+
+        print(f"KPI data loaded in {time.time() - start:.2f} sec")
 
         return df
 
+    # ----------------------------------------------------
+    # NEW FUNCTION (this was missing)
+    # ----------------------------------------------------
+    def calculate_daily_health(self, row):
+
+        revenue_score = min((row["REVENUE"] / 10000) * 100, 100)
+
+        churn_score = max(0, 100 - (row["CHURN_RATE"] * 10))
+
+        inventory_score = min((row["INVENTORY"] / 1000) * 100, 100)
+
+        health_score = (
+            revenue_score * 0.5 +
+            churn_score * 0.3 +
+            inventory_score * 0.2
+        )
+
+        return round(health_score, 2)
+
     def calculate_business_health_score(self, df):
 
-        revenue_score = min(
-            (df["REVENUE"].mean() / 20000) * 100,
-            100
-        )
-
-        churn_score = max(
-            100 - (df["CHURN_RATE"].mean() * 10),
-            0
-        )
-
-        inventory_score = min(
-            (df["INVENTORY"].mean() / 500) * 100,
-            100
-        )
-
         return round(
-            revenue_score * 0.4 +
-            churn_score * 0.3 +
-            inventory_score * 0.3,
+            df["HEALTH_SCORE"].mean(),
             2
         )
 
