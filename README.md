@@ -439,14 +439,6 @@ No API keys or passwords are committed to GitHub.
 
 ---
 
-# Author
-
-**Nimisha Rajendra**
-
-Data Analytics | AI Agents | Snowflake | SQL | Python | Streamlit
-
----
-
 # License
 
 This project is created for educational, research, and portfolio purposes.
