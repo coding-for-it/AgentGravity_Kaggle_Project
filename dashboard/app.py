@@ -350,16 +350,47 @@ def load_kpi_data():
 
 
 def load_incidents_data():
+
     if is_connected:
+
         return execute_query("""
-            SELECT I.INCIDENT_ID, I.KPI_ID, I.INCIDENT_DATE, I.INCIDENT_TYPE, I.SEVERITY, I.STATUS, I.DESCRIPTION,
-                   K.KPI_DATE, K.REVENUE, K.ORDERS, K.CUSTOMERS, K.INVENTORY, K.CHURN_RATE
+            SELECT
+                I.INCIDENT_ID,
+                I.KPI_ID,
+                I.INCIDENT_DATE,
+                I.INCIDENT_TYPE,
+                I.SEVERITY,
+                I.STATUS,
+                I.DESCRIPTION,
+                K.KPI_DATE,
+                K.REVENUE,
+                K.ORDERS,
+                K.CUSTOMERS,
+                K.INVENTORY,
+                K.CHURN_RATE
             FROM AGENTGRAVITY.INCIDENTS.INCIDENTS I
-            LEFT JOIN AGENTGRAVITY.BUSINESS.KPI_METRICS K ON I.KPI_ID = K.KPI_ID
+            LEFT JOIN AGENTGRAVITY.BUSINESS.KPI_METRICS K
+                ON I.KPI_ID = K.KPI_ID
             ORDER BY I.INCIDENT_DATE DESC
         """)
-    return pd.DataFrame(columns=["INCIDENT_ID", "KPI_ID", "INCIDENT_DATE", "INCIDENT_TYPE", "SEVERITY", "STATUS", "DESCRIPTION"])
 
+    return pd.DataFrame(
+        columns=[
+            "INCIDENT_ID",
+            "KPI_ID",
+            "INCIDENT_DATE",
+            "INCIDENT_TYPE",
+            "SEVERITY",
+            "STATUS",
+            "DESCRIPTION",
+            "KPI_DATE",
+            "REVENUE",
+            "ORDERS",
+            "CUSTOMERS",
+            "INVENTORY",
+            "CHURN_RATE"
+        ]
+    )
 
 def load_root_causes_data():
     if is_connected:
@@ -422,141 +453,221 @@ def load_audit_logs():
 # SECTION 5 — VISUALIZATION & UI HELPERS
 # ===========================================================
 
-def render_kpi_card(title, value, delta=None, delta_positive=True, border_color="#3B82F6"):
-    """Render a premium KPI card with optional delta indicator."""
+def render_kpi_card(
+    title,
+    value,
+    delta=None,
+    delta_positive=True,
+    border_color="#3B82F6"
+):
+
     delta_html = ""
+
     if delta is not None:
+
         color_class = "delta-up" if delta_positive else "delta-down"
+
         arrow = "▲" if delta_positive else "▼"
-        delta_html = f'<div class="kpi-delta {color_class}">{arrow} {delta}</div>'
 
-    st.markdown(f"""
-    <div class="kpi-card-custom" style="border-left-color: {border_color};">
-        <div class="kpi-label">{title}</div>
-        <div class="kpi-value">{value}</div>
-        {delta_html}
-    </div>
-    """, unsafe_allow_html=True)
+        delta_html = f"""
+<div class="kpi-delta {color_class}">
+    {arrow} {delta}
+</div>
+"""
 
-
-def render_pill(severity):
-    """Render a color-coded severity badge pill."""
-    severity_lower = str(severity).lower().strip()
-    badge_class = "badge-low"
-    if "critical" in severity_lower:
-        badge_class = "badge-critical"
-    elif "high" in severity_lower:
-        badge_class = "badge-high"
-    elif "medium" in severity_lower:
-        badge_class = "badge-medium"
-    return f'<span class="badge {badge_class}">{severity}</span>'
-
-
-def apply_plotly_theme(fig, height=350):
-    """Apply the AntiGravity dark theme to any Plotly figure."""
-    fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font_color='#94A3B8',
-        font_family='Inter, sans-serif',
-        title_font_family='Outfit, sans-serif',
-        title_font_color='#FFFFFF',
-        title_font_size=15,
-        height=height,
-        margin=dict(l=10, r=10, t=40, b=10),
-        xaxis=dict(
-            gridcolor='rgba(255,255,255,0.03)',
-            zerolinecolor='rgba(255,255,255,0.05)',
-            tickfont=dict(color='#64748B')
-        ),
-        yaxis=dict(
-            gridcolor='rgba(255,255,255,0.03)',
-            zerolinecolor='rgba(255,255,255,0.05)',
-            tickfont=dict(color='#64748B')
-        ),
-        legend=dict(
-            bgcolor='rgba(0,0,0,0)',
-            bordercolor='rgba(255,255,255,0.05)',
-            font=dict(size=11)
-        )
+    st.markdown(
+        f"""
+<div class="kpi-card-custom" style="border-left-color:{border_color};">
+    <div class="kpi-label">{title}</div>
+    <div class="kpi-value">{value}</div>
+    {delta_html}
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
+# ------------------------------------------------------------
+
+def render_pill(severity):
+
+    severity = str(severity).lower()
+
+    badge = "badge-low"
+
+    if "critical" in severity:
+        badge = "badge-critical"
+
+    elif "high" in severity:
+        badge = "badge-high"
+
+    elif "medium" in severity:
+        badge = "badge-medium"
+
+    return f'<span class="badge {badge}">{severity.upper()}</span>'
+
+
+# ------------------------------------------------------------
+
+def apply_plotly_theme(fig, height=350):
+
+    fig.update_layout(
+
+        paper_bgcolor="rgba(0,0,0,0)",
+
+        plot_bgcolor="rgba(0,0,0,0)",
+
+        font_color="#94A3B8",
+
+        font_family="Inter",
+
+        title_font_color="white",
+
+        title_font_size=16,
+
+        height=height,
+
+        margin=dict(
+
+            l=10,
+            r=10,
+            t=40,
+            b=10
+
+        ),
+
+        xaxis=dict(
+
+            gridcolor="rgba(255,255,255,0.05)"
+
+        ),
+
+        yaxis=dict(
+
+            gridcolor="rgba(255,255,255,0.05)"
+
+        )
+
+    )
+
+
+# ------------------------------------------------------------
+
 def parse_executive_report(text):
-    """Parse Gemini-generated executive report text into keyed sections."""
+
     sections = {
-        "Executive Summary": "No Executive Summary generated.",
-        "Top Business Risks": "No Risks identified.",
-        "Business Impact": "No Impact details available.",
-        "Recommended Actions": "No recommendations recorded.",
-        "Priority Level": "UNKNOWN"
+
+        "Executive Summary": "",
+
+        "Top Business Risks": "",
+
+        "Business Impact": "",
+
+        "Recommended Actions": "",
+
+        "Priority Level": ""
+
     }
 
     if not text:
+
         return sections
 
-    current_key = "Executive Summary"
-    lines = text.split('\n')
+    current = "Executive Summary"
+
     buffer = []
 
-    for line in lines:
+    for line in text.split("\n"):
+
         stripped = line.strip()
+
         if not stripped:
+
             continue
 
         matched = False
+
         for sec in sections.keys():
-            if sec.lower() in stripped.lower() and len(stripped) < len(sec) + 4:
-                sections[current_key] = "\n".join(buffer).strip()
-                current_key = sec
+
+            if stripped.lower().startswith(sec.lower()):
+
+                sections[current] = "\n".join(buffer).strip()
+
+                current = sec
+
                 buffer = []
+
                 matched = True
+
                 break
 
         if not matched:
+
             buffer.append(line)
 
-    if buffer:
-        sections[current_key] = "\n".join(buffer).strip()
+    sections[current] = "\n".join(buffer).strip()
 
-    sections["Priority Level"] = sections["Priority Level"].replace("Priority Level", "").replace(":", "").strip()
+    sections["Priority Level"] = sections["Priority Level"].replace("Priority Level","").replace(":","").strip()
+
     return sections
 
 
+# ------------------------------------------------------------
+
 def render_empty_state(icon, title, message):
-    """Render a standardized empty-state placeholder."""
-    st.markdown(f"""
-    <div class="empty-state">
-        <div class="empty-state-icon">{icon}</div>
-        <div class="empty-state-title">{title}</div>
-        <div class="empty-state-message">{message}</div>
-    </div>
-    """, unsafe_allow_html=True)
 
+    st.markdown(
+        f"""
+<div class="empty-state">
+    <div class="empty-state-icon">{icon}</div>
+    <div class="empty-state-title">{title}</div>
+    <div class="empty-state-message">{message}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 
-def render_agent_console(script_path, button_label, spinner_msg, section_title="Execution Console"):
+# ------------------------------------------------------------
+# Universal Agent Launcher
+# ------------------------------------------------------------
+def render_agent_console(
+    script_path,
+    button_label,
+    spinner_msg,
+    section_title="Execution Console"
+):
     """
-    Reusable agent launcher with live terminal streaming.
-    Runs the given script as a subprocess and streams stdout to the terminal window.
-    Refreshes Streamlit on success.
+    Universal Agent Launcher
+
+    - Executes an individual AI agent.
+    - Hides terminal output during successful execution.
+    - Displays error output only if execution fails.
+    - Updates pipeline status automatically.
     """
-    st.markdown(f'<div class="glass-card">', unsafe_allow_html=True)
+
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.markdown(f"### {section_title}")
 
     if st.button(button_label, type="primary"):
-        log_placeholder = st.empty()
-        with st.spinner(spinner_msg):
-            try:
-                # Project root
-                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                # Convert "agents/monitoring_agent.py"
-                # into "agents.monitoring_agent"
-                module_name = (
-                    script_path
-                    .replace("/", ".")
-                    .replace("\\", ".")
-                    .replace(".py", "")
-                )
-                
+
+        project_root = os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+
+        module_name = (
+            script_path
+            .replace("/", ".")
+            .replace("\\", ".")
+            .replace(".py", "")
+        )
+
+        start_time = time.time()
+
+        try:
+
+            with st.spinner(spinner_msg):
+
                 proc = subprocess.Popen(
                     [
                         sys.executable,
@@ -568,50 +679,47 @@ def render_agent_console(script_path, button_label, spinner_msg, section_title="
                     stderr=subprocess.STDOUT,
                     text=True
                 )
-                
 
-                log_content = f"[System] Starting {script_path}...\n"
-                log_placeholder.markdown(
-                    f'<div class="terminal-window">{log_content}</div>',
-                    unsafe_allow_html=True
+                # Capture console output without displaying it
+                output, _ = proc.communicate()
+
+                execution_time = round(
+                    time.time() - start_time,
+                    2
                 )
 
-                while True:
-                    line = proc.stdout.readline()
-                    if not line:
-                        break
-                    log_content += line
-                    log_placeholder.markdown(
-                        f'<div class="terminal-window">{log_content}</div>',
-                        unsafe_allow_html=True
+            if proc.returncode == 0:
+
+                st.session_state.pipeline_status = "Completed"
+                st.session_state.pipeline_time = f"{execution_time} sec"
+                st.session_state.last_execution = datetime.now().strftime(
+                    "%d %b %Y %I:%M:%S %p"
+                )
+
+                st.success(
+                    f"✅ Completed successfully in {execution_time} sec"
+                )
+
+                time.sleep(1)
+
+                st.rerun()
+
+            else:
+
+                st.error("❌ Agent execution failed.")
+
+                with st.expander("Show Error Details"):
+
+                    st.code(
+                        output,
+                        language="text"
                     )
 
-                proc.communicate()
+        except Exception as e:
 
-                if proc.returncode == 0:
-                    st.session_state.pipeline_status = "Completed"
-                    t.session_state.pipeline_time = f"{execution_time} sec"
-                    st.session_state.last_execution = datetime.now().strftime("%d %b %Y %I:%M:%S %p")
-                    log_content += "\n[System] ✓ Agent completed successfully.\n"
-                    log_placeholder.markdown(
-                        f'<div class="terminal-window">{log_content}</div>',
-                        unsafe_allow_html=True
-                    )
-                    st.success("Agent completed successfully. Refreshing data...")
-                    time.sleep(1.5)
-                    st.rerun()
-                else:
-                    log_content += "\n[System] ✗ Agent exited with errors.\n"
-                    log_placeholder.markdown(
-                        f'<div class="terminal-window">{log_content}</div>',
-                        unsafe_allow_html=True
-                    )
-                    st.error("Agent execution failed. Review the console output above.")
+            st.error(f"Execution Error: {e}")
 
-            except Exception as e:
-                st.error(f"Execution Error: {e}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 def render_full_pipeline_console():
 
@@ -817,6 +925,164 @@ def refresh_status(placeholder, agent_status):
 | 🛠 Recovery | {agent_status["Recovery"]} |
 """
     )
+
+def render_download_center():
+
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+
+    st.markdown("### 📥 Export Center")
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    # --------------------------------------------------
+    # Executive Report
+    # --------------------------------------------------
+
+    try:
+
+        cursor.execute("""
+        SELECT EXECUTIVE_SUMMARY
+        FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+        ORDER BY CREATED_AT DESC
+        LIMIT 1
+        """)
+
+        row = cursor.fetchone()
+
+        if row:
+
+            st.download_button(
+
+                "⬇ Download Executive Report",
+
+                row[0],
+
+                file_name="Executive_Report.txt",
+
+                mime="text/plain"
+
+            )
+
+    except:
+
+        st.info("Executive Report not available.")
+
+    # --------------------------------------------------
+    # Recovery Plan
+    # --------------------------------------------------
+
+    try:
+
+        cursor.execute("""
+        SELECT
+            IMMEDIATE_ACTIONS,
+            SHORT_TERM_ACTIONS,
+            LONG_TERM_ACTIONS,
+            EXPECTED_BUSINESS_OUTCOME
+        FROM AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN
+        ORDER BY CREATED_AT DESC
+        LIMIT 1
+        """)
+
+        row = cursor.fetchone()
+
+        if row:
+
+            report = f"""
+Recovery Plan
+
+Immediate Actions
+-----------------
+{row[0]}
+
+Short Term Actions
+------------------
+{row[1]}
+
+Long Term Actions
+-----------------
+{row[2]}
+
+Expected Outcome
+----------------
+{row[3]}
+"""
+
+            st.download_button(
+
+                "⬇ Download Recovery Plan",
+
+                report,
+
+                file_name="Recovery_Plan.txt",
+
+                mime="text/plain"
+
+            )
+
+    except:
+
+        st.info("Recovery Plan not available.")
+
+    # --------------------------------------------------
+    # Audit Log
+    # --------------------------------------------------
+
+    try:
+
+        audit_df = load_audit_logs()
+
+        if not audit_df.empty:
+
+            st.download_button(
+
+                "⬇ Download Audit Log",
+
+                audit_df.to_csv(index=False),
+
+                file_name="Audit_Log.csv",
+
+                mime="text/csv"
+
+            )
+
+    except:
+
+        st.info("Audit Log unavailable.")
+
+    # --------------------------------------------------
+    # Incident Report
+    # --------------------------------------------------
+
+    try:
+
+        incident_df = load_incidents_data()
+
+        if not incident_df.empty:
+
+            st.download_button(
+
+                "⬇ Download Incident Report",
+
+                incident_df.to_csv(index=False),
+
+                file_name="Incident_Report.csv",
+
+                mime="text/csv"
+
+            )
+
+    except:
+
+        st.info("Incident Report unavailable.")
+
+    cursor.close()
+
+    conn.close()
+
+    st.markdown("</div>", unsafe_allow_html=True)
 # ===========================================================
 # SECTION 6 — SIDEBAR
 # ===========================================================
@@ -904,9 +1170,185 @@ prev_kpi = df_kpis.iloc[-2] if len(df_kpis) > 1 else None
 # ===========================================================
 
 # ----------------------------------------------------------
-# PAGE 1 — 📤 Data Upload
+# PAGE 1 — ⚙ Operations Center
 # ----------------------------------------------------------
-if page == "📤 Data Upload":
+if page == "⚙ Operations Center":
+    st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Operations Center</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #64748B; margin-bottom: 25px;">AI agent control room — pipeline orchestration, system telemetry, and database health monitoring.</p>', unsafe_allow_html=True)
+
+    # — Status Row —
+    status_cols = st.columns(3)
+
+    with status_cols[0]:
+        if is_connected:
+            render_kpi_card("Snowflake Status", "● Connected", "Database online", True, border_color="#10B981")
+        else:
+            render_kpi_card("Snowflake Status", "● Offline", "Check .env credentials", False, border_color="#EF4444")
+
+    open_count = len(df_incidents[df_incidents["STATUS"] == "OPEN"]) if not df_incidents.empty else 0
+    with status_cols[1]:
+        render_kpi_card("Open Incidents", f"{open_count}", "Require investigation" if open_count > 0 else "All cleared", open_count == 0, border_color="#F59E0B" if open_count > 0 else "#10B981")
+
+    total_causes = len(df_causes)
+    with status_cols[2]:
+        render_kpi_card("Root Causes Diagnosed", f"{total_causes}", "Identified anomaly drivers", True, border_color="#8B5CF6")
+
+    # — Database Table Telemetry —
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### 🗄 Snowflake Database Telemetry")
+
+    if is_connected:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            tables = [
+                (
+                    "BUSINESS.KPI_METRICS",
+                    "Business Data",
+                    "Historical KPI telemetry"
+                ),
+
+                (
+                    "INCIDENTS.INCIDENTS",
+                    "Incidents",
+                    "Business anomalies detected"
+                ),
+
+                (
+                    "INCIDENTS.ROOT_CAUSES",
+                    "Root Causes",
+                    "Diagnosed incident causes"
+                ),
+
+                (
+                    "INCIDENTS.IMPACT_ANALYSIS",
+                    "Impact Analysis",
+                    "Financial impact assessment"
+                ),
+
+                (
+                    "INCIDENTS.RECOVERY_PLAN",
+                    "Recovery Plans",
+                    "AI-generated recovery strategies"
+                ),
+
+                (
+                    "INCIDENTS.EXECUTIVE_REPORTS",
+                    "Executive Reports",
+                    "Gemini executive summaries"
+                ),
+
+                (
+                    "SECURITY.AGENT_AUDIT_LOG",
+                    "Audit Logs",
+                    "Agent execution history"
+                )
+
+             ]
+
+            rows = []
+
+            for table_path, display_name, description in tables:
+                try:
+                    cursor.execute(
+                        f"SELECT COUNT(*) FROM AGENTGRAVITY.{table_path}"
+                    )
+
+                    count = cursor.fetchone()[0]
+
+                except Exception:
+                    count = "-"
+
+                rows.append({
+                    "Table": display_name,
+                    "Rows": count,
+                    "Description": description
+                })
+
+            cursor.close()
+            conn.close()
+
+            st.dataframe(
+                pd.DataFrame(rows),
+                hide_index=True,
+                use_container_width=True
+            )
+
+        except Exception as e:
+            st.error(f"Snowflake Error: {e}")
+
+    else:
+        st.warning(
+            "🔌 Snowflake Offline. Connect the database to view telemetry."
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # — Audit Logs —
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("### 🤖 Agent Execution Summary")
+
+    df_logs_all = load_audit_logs()
+
+    if not df_logs_all.empty:
+        total_runs = len(df_logs_all)
+
+        latest_run = df_logs_all["EXECUTION_TIME"].max()
+
+        successful_agents = (
+            df_logs_all["AGENT_NAME"]
+            .nunique()
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            render_kpi_card(
+                "Log Entries",
+                str(total_runs),
+                "Execution history",
+                True,
+                border_color="#3B82F6"
+            )
+
+        with col2:
+            render_kpi_card(
+                "Agents Executed",
+                str(successful_agents),
+                "Pipeline components",
+                True,
+                border_color="#8B5CF6"
+            )
+
+        with col3:
+            render_kpi_card(
+                "Latest Run",
+                latest_run.strftime("%d %b %H:%M"),
+                "Most recent execution",
+                True,
+                border_color="#10B981"
+            )
+
+        st.success("✓ Agent audit logging is active.")
+
+    else:
+        render_empty_state(
+            "🤖",
+            "No Agent Runs Yet",
+            "Execute the pipeline to generate agent execution logs."
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # — Full Pipeline (the ONLY place in the dashboard that runs the full pipeline) —
+    render_full_pipeline_console()
+    render_download_center()
+
+
+# ----------------------------------------------------------
+# PAGE 2 — 📤 Data Upload
+# ----------------------------------------------------------
+elif page == "📤 Data Upload":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Data Ingestion & Telemetry Upload</h1>', unsafe_allow_html=True)
     st.markdown('<p style="color: #64748B; margin-bottom: 25px;">Upload business KPI metrics and validate telemetry schema before ingesting into Snowflake.</p>', unsafe_allow_html=True)
 
@@ -970,7 +1412,7 @@ if page == "📤 Data Upload":
                 # — Snowflake Upload —
                 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
                 st.markdown("### 3. Upload to Snowflake")
-                truncate_option = st.checkbox("Replace existing data (truncate BUSINESS.KPI_METRICS before uploading)", value=True)
+                truncate_option = st.checkbox("Replace existing data", value=True)
 
                 if st.button("📤 Upload to Snowflake", type="primary"):
                     if not is_connected:
@@ -979,7 +1421,7 @@ if page == "📤 Data Upload":
                         with st.spinner("Uploading to Snowflake..."):
                             success, result = upload_kpis_to_snowflake(df_upload, truncate=truncate_option)
                             if success:
-                                st.success(f"🎉 Successfully uploaded {result:,} records to Snowflake BUSINESS.KPI_METRICS!")
+                                st.success(f"🎉 Successfully uploaded {result:,} records to Snowflake!")
                                 time.sleep(1)
                                 st.rerun()
                             else:
@@ -1000,7 +1442,7 @@ if page == "📤 Data Upload":
 
 
 # ----------------------------------------------------------
-# PAGE 2 — 📈 Monitoring
+# PAGE 3 — 📈 Monitoring
 # ----------------------------------------------------------
 elif page == "📈 Monitoring":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Business Metrics & Incident Monitoring</h1>', unsafe_allow_html=True)
@@ -1115,7 +1557,7 @@ elif page == "📈 Monitoring":
 
 
 # ----------------------------------------------------------
-# PAGE 3 — 🔍 Root Cause Analysis
+# PAGE 4 — 🔍 Root Cause Analysis
 # ----------------------------------------------------------
 elif page == "🔍 Root Cause Analysis":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Root Cause Analysis</h1>', unsafe_allow_html=True)
@@ -1231,7 +1673,7 @@ elif page == "🔍 Root Cause Analysis":
 
 
 # ----------------------------------------------------------
-# PAGE 4 — 💰 Business Impact
+# PAGE 5 — 💰 Business Impact
 # ----------------------------------------------------------
 elif page == "💰 Business Impact":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Business Impact</h1>', unsafe_allow_html=True)
@@ -1335,7 +1777,7 @@ elif page == "💰 Business Impact":
     )
 
 # ----------------------------------------------------------
-# PAGE 5 — 👔 Executive Dashboard (READ ONLY)
+# PAGE 6 — 👔 Executive Dashboard (READ ONLY)
 # ----------------------------------------------------------
 elif page == "👔 Executive Dashboard":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Executive Dashboard</h1>', unsafe_allow_html=True)
@@ -1661,7 +2103,7 @@ elif page == "👔 Executive Dashboard":
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------------
-# PAGE 6 — 🛠 Recovery Strategy
+# PAGE 7 — 🛠 Recovery Strategy
 # ----------------------------------------------------------
 elif page == "🛠 Recovery Strategy":
     st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Recovery Strategy</h1>', unsafe_allow_html=True)
@@ -1727,181 +2169,6 @@ elif page == "🛠 Recovery Strategy":
         spinner_msg="Invoking Gemini Recovery Agent...",
         section_title="Recovery Plan Orchestration"
     )
-
-
-# ----------------------------------------------------------
-# PAGE 7 — ⚙ Operations Center
-# ----------------------------------------------------------
-elif page == "⚙ Operations Center":
-    st.markdown('<h1 class="gradient-title" style="margin-bottom: 5px;">Operations Center</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="color: #64748B; margin-bottom: 25px;">AI agent control room — pipeline orchestration, system telemetry, and database health monitoring.</p>', unsafe_allow_html=True)
-
-    # — Status Row —
-    status_cols = st.columns(3)
-
-    with status_cols[0]:
-        if is_connected:
-            render_kpi_card("Snowflake Status", "● Connected", "Database online", True, border_color="#10B981")
-        else:
-            render_kpi_card("Snowflake Status", "● Offline", "Check .env credentials", False, border_color="#EF4444")
-
-    open_count = len(df_incidents[df_incidents["STATUS"] == "OPEN"]) if not df_incidents.empty else 0
-    with status_cols[1]:
-        render_kpi_card("Open Incidents", f"{open_count}", "Require investigation" if open_count > 0 else "All cleared", open_count == 0, border_color="#F59E0B" if open_count > 0 else "#10B981")
-
-    total_causes = len(df_causes)
-    with status_cols[2]:
-        render_kpi_card("Root Causes Diagnosed", f"{total_causes}", "Identified anomaly drivers", True, border_color="#8B5CF6")
-
-    # — Database Table Telemetry —
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### 🗄 Snowflake Database Telemetry")
-
-    if is_connected:
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-
-            tables = [
-                (
-                    "BUSINESS.KPI_METRICS",
-                    "Business Data",
-                    "Historical KPI telemetry"
-                ),
-
-                (
-                    "INCIDENTS.INCIDENTS",
-                    "Incidents",
-                    "Business anomalies detected"
-                ),
-
-                (
-                    "INCIDENTS.ROOT_CAUSES",
-                    "Root Causes",
-                    "Diagnosed incident causes"
-                ),
-
-                (
-                    "INCIDENTS.IMPACT_ANALYSIS",
-                    "Impact Analysis",
-                    "Financial impact assessment"
-                ),
-
-                (
-                    "INCIDENTS.RECOVERY_PLAN",
-                    "Recovery Plans",
-                    "AI-generated recovery strategies"
-                ),
-
-                (
-                    "INCIDENTS.EXECUTIVE_REPORTS",
-                    "Executive Reports",
-                    "Gemini executive summaries"
-                ),
-
-                (
-                    "SECURITY.AGENT_AUDIT_LOG",
-                    "Audit Logs",
-                    "Agent execution history"
-                )
-
-             ]
-
-            rows = []
-
-            for table_path, display_name, description in tables:
-                try:
-                    cursor.execute(
-                        f"SELECT COUNT(*) FROM AGENTGRAVITY.{table_path}"
-                    )
-
-                    count = cursor.fetchone()[0]
-
-                except Exception:
-                    count = "-"
-
-                rows.append({
-                    "Table": display_name,
-                    "Rows": count,
-                    "Description": description
-                })
-
-            cursor.close()
-            conn.close()
-
-            st.dataframe(
-                pd.DataFrame(rows),
-                hide_index=True,
-                use_container_width=True
-            )
-
-        except Exception as e:
-            st.error(f"Snowflake Error: {e}")
-
-    else:
-        st.warning(
-            "🔌 Snowflake Offline. Connect the database to view telemetry."
-        )
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # — Audit Logs —
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.markdown("### 🤖 Agent Execution Summary")
-
-    df_logs_all = load_audit_logs()
-
-    if not df_logs_all.empty:
-        total_runs = len(df_logs_all)
-
-        latest_run = df_logs_all["EXECUTION_TIME"].max()
-
-        successful_agents = (
-            df_logs_all["AGENT_NAME"]
-            .nunique()
-        )
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            render_kpi_card(
-                "Log Entries",
-                str(total_runs),
-                "Execution history",
-                True,
-                border_color="#3B82F6"
-            )
-
-        with col2:
-            render_kpi_card(
-                "Agents Executed",
-                str(successful_agents),
-                "Pipeline components",
-                True,
-                border_color="#8B5CF6"
-            )
-
-        with col3:
-            render_kpi_card(
-                "Latest Run",
-                latest_run.strftime("%d %b %H:%M"),
-                "Most recent execution",
-                True,
-                border_color="#10B981"
-            )
-
-        st.success("✓ Agent audit logging is active.")
-
-    else:
-        render_empty_state(
-            "🤖",
-            "No Agent Runs Yet",
-            "Execute the pipeline to generate agent execution logs."
-        )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # — Full Pipeline (the ONLY place in the dashboard that runs the full pipeline) —
-    render_full_pipeline_console()
 
 # ===========================================================
 # SECTION 9 — FOOTER
