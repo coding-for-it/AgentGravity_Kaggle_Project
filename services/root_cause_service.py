@@ -1,13 +1,13 @@
-import pandas as pd
-
-from services.snowflake_connection import get_connection
+from mcp.snowflake_mcp import SnowflakeMCP
 
 
 class RootCauseService:
 
     def __init__(self):
 
-        self.conn = get_connection()
+        self.mcp = SnowflakeMCP()
+
+    # --------------------------------------------------
 
     def get_open_incidents(self):
 
@@ -22,7 +22,9 @@ class RootCauseService:
         ORDER BY INCIDENT_ID
         """
 
-        return pd.read_sql(query, self.conn)
+        return self.mcp.execute_query(query)
+
+    # --------------------------------------------------
 
     def get_all_kpis(self):
 
@@ -31,7 +33,9 @@ class RootCauseService:
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
         """
 
-        return pd.read_sql(query, self.conn)
+        return self.mcp.execute_query(query)
+
+    # --------------------------------------------------
 
     def get_historical_averages(self):
 
@@ -45,7 +49,9 @@ class RootCauseService:
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
         """
 
-        return pd.read_sql(query, self.conn).iloc[0]
+        return self.mcp.execute_query(query).iloc[0]
+
+    # --------------------------------------------------
 
     def get_existing_root_causes(self):
 
@@ -54,38 +60,39 @@ class RootCauseService:
         FROM AGENTGRAVITY.INCIDENTS.ROOT_CAUSES
         """
 
-        df = pd.read_sql(query, self.conn)
+        df = self.mcp.execute_query(query)
+
+        if df.empty:
+
+            return set()
 
         return set(df["INCIDENT_ID"])
 
+    # --------------------------------------------------
+
     def save_root_causes(self, results):
-
         if len(results) == 0:
-
             print("No new root causes to insert.")
-
+            
             return
-
-        cursor = self.conn.cursor()
 
         query = """
         INSERT INTO
         AGENTGRAVITY.INCIDENTS.ROOT_CAUSES
         (
-            INCIDENT_ID,
-            CAUSE_NAME,
-            CONFIDENCE_SCORE
+        INCIDENT_ID,
+        CAUSE_NAME,
+        CONFIDENCE_SCORE
         )
         VALUES
         (
-            %s,
-            %s,
-            %s
+        %s,
+        %s,
+        %s
         )
         """
 
         values = [
-
             (
                 row["incident_id"],
                 row["cause"],
@@ -96,12 +103,14 @@ class RootCauseService:
 
         ]
 
-        cursor.executemany(query, values)
+        self.mcp.execute_many(
+            query,
+            values
+        )
 
-        self.conn.commit()
-
-        cursor.close()
+        print(f"Saved {len(values)} root causes.")
+    # --------------------------------------------------
 
     def close(self):
 
-        self.conn.close()
+        self.mcp.close()

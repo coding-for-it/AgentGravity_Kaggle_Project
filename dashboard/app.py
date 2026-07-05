@@ -1137,12 +1137,12 @@ st.sidebar.markdown(
 st.sidebar.markdown("""
 <div style="font-size: 11px; color: #475569; line-height: 2.0; padding: 0 4px;">
     📤 Ingest Data<br>
+    ↓ ⚙ Orchestrate Pipeline<br>
     ↓ 📈 Detect Anomalies<br>
     ↓ 🔍 Diagnose Causes<br>
     ↓ 💰 Estimate Impact<br>
-    ↓ 🛠 Recover &amp; Mitigate<br>
-    ↓ ⚙ Orchestrate Pipeline<br>
     ↓ 👔 Executive Briefing
+    ↓ 🛠 Recover &amp; Mitigate<br>
 </div>
 """, unsafe_allow_html=True)
 

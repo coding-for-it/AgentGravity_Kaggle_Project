@@ -1,8 +1,8 @@
-from agents.monitoring_agent import MonitoringAgent
-from agents.root_cause_agent import RootCauseAgent
-from agents.impact_agent import ImpactAgent
-from agents.executive_agent import ExecutiveAgent
-from agents.recovery_agent import RecoveryAgent
+from agents.adk.monitoring_adk import MonitoringADKAgent
+from agents.adk.rootcause_adk import RootCauseADKAgent
+from agents.adk.impact_adk import ImpactADKAgent
+from agents.adk.executive_adk import ExecutiveADKAgent
+from agents.adk.recovery_adk import RecoveryADKAgent
 
 from services.logger import get_logger
 
@@ -27,8 +27,8 @@ def main():
         print("\nSTEP 1: Monitoring Agent", flush=True)
         logger.info("STEP 1 : Monitoring Agent Started")
 
-        monitoring_agent = MonitoringAgent()
-        monitoring_result = monitoring_agent.run()
+        monitoring_agent = MonitoringADKAgent()
+        monitoring_result = monitoring_agent.execute()
 
         logger.info("Monitoring Agent Completed")
 
@@ -38,8 +38,8 @@ def main():
         print("\nSTEP 2: Root Cause Agent", flush=True)
         logger.info("STEP 2 : Root Cause Agent Started")
 
-        root_cause_agent = RootCauseAgent()
-        root_cause_agent.run()
+        root_cause_agent = RootCauseADKAgent()
+        root_cause_agent.execute()
 
         logger.info("Root Cause Agent Completed")
 
@@ -49,8 +49,8 @@ def main():
         print("\nSTEP 3: Impact Agent", flush=True)
         logger.info("STEP 3 : Impact Agent Started")
 
-        impact_agent = ImpactAgent()
-        impact_agent.run()
+        impact_agent = ImpactADKAgent()
+        impact_agent.execute()
 
         logger.info("Impact Agent Completed")
 
@@ -60,8 +60,8 @@ def main():
         print("\nSTEP 4: Executive Agent", flush=True)
         logger.info("STEP 4 : Executive Agent Started")
 
-        executive_agent = ExecutiveAgent()
-        executive_agent.run()
+        executive_agent = ExecutiveADKAgent()
+        executive_agent.execute()
 
         logger.info("Executive Agent Completed")
 
@@ -71,8 +71,8 @@ def main():
         print("\nSTEP 5: Recovery Agent", flush=True)
         logger.info("STEP 5 : Recovery Agent Started")
 
-        recovery_agent = RecoveryAgent()
-        recovery_agent.run()
+        recovery_agent = RecoveryADKAgent()
+        recovery_agent.execute()
 
         logger.info("Recovery Agent Completed")
 

@@ -5,18 +5,21 @@ from services.snowflake_connection import get_connection
 
 class SnowflakeMCP:
 
+    def __init__(self):
+
+        self.conn = get_connection()
+
+    # ----------------------------------------------------
+    # SELECT Queries
+    # ----------------------------------------------------
+
     def execute_query(self, query):
 
-        conn = get_connection()
+        return pd.read_sql(query, self.conn)
 
-        df = pd.read_sql(
-            query,
-            conn
-        )
-
-        conn.close()
-
-        return df
+    # ----------------------------------------------------
+    # Single INSERT / UPDATE / DELETE
+    # ----------------------------------------------------
 
     def execute_dml(
         self,
@@ -24,42 +27,77 @@ class SnowflakeMCP:
         values=None
     ):
 
-        conn = get_connection()
+        cursor = self.conn.cursor()
 
-        cursor = conn.cursor()
+        try:
 
-        if values:
+            if values is not None:
 
-            cursor.execute(
-                query,
-                values
-            )
+                cursor.execute(query, values)
 
-        else:
+            else:
 
-            cursor.execute(query)
+                cursor.execute(query)
 
-        conn.commit()
+            self.conn.commit()
 
-        cursor.close()
+        finally:
 
-        conn.close()
+            cursor.close()
+
+    # ----------------------------------------------------
+    # BULK INSERT
+    # ----------------------------------------------------
+
+    def execute_many(
+        self,
+        query,
+        values
+    ):
+
+        if len(values) == 0:
+
+            return
+
+        cursor = self.conn.cursor()
+
+        try:
+
+            cursor.executemany(query, values)
+
+            self.conn.commit()
+
+        finally:
+
+            cursor.close()
+
+    # ----------------------------------------------------
+    # Fetch Single Value
+    # ----------------------------------------------------
 
     def fetch_scalar(self, query):
 
-        conn = get_connection()
+        cursor = self.conn.cursor()
 
-        cursor = conn.cursor()
+        try:
 
-        cursor.execute(query)
+            cursor.execute(query)
 
-        value = cursor.fetchone()[0]
+            row = cursor.fetchone()
 
-        cursor.close()
+            if row:
 
-        conn.close()
+                return row[0]
 
-        return value
+            return None
+
+        finally:
+
+            cursor.close()
+
+    # ----------------------------------------------------
+    # Table Count
+    # ----------------------------------------------------
 
     def table_count(self, table_name):
 
@@ -70,22 +108,36 @@ class SnowflakeMCP:
 
         return self.fetch_scalar(query)
 
+    # ----------------------------------------------------
+    # Check Table Exists
+    # ----------------------------------------------------
+
     def table_exists(self, table_name):
 
-        conn = get_connection()
+        cursor = self.conn.cursor()
 
-        cursor = conn.cursor()
+        try:
 
-        cursor.execute(
-            f"""
-            SHOW TABLES LIKE '{table_name.split('.')[-1]}'
-            """
-        )
+            cursor.execute(
+                f"""
+                SHOW TABLES LIKE '{table_name.split('.')[-1]}'
+                """
+            )
 
-        exists = cursor.fetchone() is not None
+            return cursor.fetchone() is not None
 
-        cursor.close()
+        finally:
 
-        conn.close()
+            cursor.close()
 
-        return exists
+    # ----------------------------------------------------
+    # Close Connection
+    # ----------------------------------------------------
+
+    def close(self):
+
+        if self.conn:
+
+            self.conn.close()
+
+            self.conn = None

@@ -1,13 +1,13 @@
-import pandas as pd
-
-from services.snowflake_connection import get_connection
+from mcp.snowflake_mcp import SnowflakeMCP
 
 
 class ImpactService:
 
     def __init__(self):
 
-        self.conn = get_connection()
+        self.mcp = SnowflakeMCP()
+
+    # ----------------------------------------------------
 
     def get_open_incidents(self):
 
@@ -21,7 +21,9 @@ class ImpactService:
         ORDER BY INCIDENT_ID
         """
 
-        return pd.read_sql(query, self.conn)
+        return self.mcp.execute_query(query)
+
+    # ----------------------------------------------------
 
     def get_all_kpis(self):
 
@@ -34,18 +36,23 @@ class ImpactService:
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
         """
 
-        return pd.read_sql(query, self.conn)
+        return self.mcp.execute_query(query)
+
+    # ----------------------------------------------------
 
     def get_average_revenue(self):
 
         query = """
-        SELECT AVG(REVENUE) AS AVG_REVENUE
+        SELECT
+            AVG(REVENUE) AS AVG_REVENUE
         FROM AGENTGRAVITY.BUSINESS.KPI_METRICS
         """
 
-        df = pd.read_sql(query, self.conn)
+        df = self.mcp.execute_query(query)
 
         return float(df.iloc[0]["AVG_REVENUE"])
+
+    # ----------------------------------------------------
 
     def get_existing_impacts(self):
 
@@ -54,40 +61,40 @@ class ImpactService:
         FROM AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS
         """
 
-        df = pd.read_sql(query, self.conn)
+        df = self.mcp.execute_query(query)
+
+        if df.empty:
+
+            return set()
 
         return set(df["INCIDENT_ID"])
 
+    # ----------------------------------------------------
+
     def save_impacts(self, results):
-
         if len(results) == 0:
-
             print("No new impact records.")
-
             return
-
-        cursor = self.conn.cursor()
 
         query = """
         INSERT INTO
         AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS
         (
-            INCIDENT_ID,
-            ESTIMATED_REVENUE_LOSS,
-            BUSINESS_SEVERITY,
-            CREATED_AT
+        INCIDENT_ID,
+        ESTIMATED_REVENUE_LOSS,
+        BUSINESS_SEVERITY,
+        CREATED_AT
         )
         VALUES
         (
-            %s,
-            %s,
-            %s,
-            CURRENT_TIMESTAMP()
+        %s,
+        %s,
+        %s,
+        CURRENT_TIMESTAMP()
         )
         """
 
         values = [
-
             (
                 row["incident_id"],
                 row["estimated_loss"],
@@ -98,12 +105,14 @@ class ImpactService:
 
         ]
 
-        cursor.executemany(query, values)
+        self.mcp.execute_many(
+            query,
+            values
+        )
 
-        self.conn.commit()
-
-        cursor.close()
+        print(f"Saved {len(values)} impact records.")
+    # ----------------------------------------------------
 
     def close(self):
 
-        self.conn.close()
+        pass

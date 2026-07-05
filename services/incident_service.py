@@ -1,41 +1,41 @@
-from services.snowflake_connection import get_connection
+from mcp.snowflake_mcp import SnowflakeMCP
+
+
+mcp = SnowflakeMCP()
 
 
 def clear_previous_workflow():
 
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
     print("Clearing previous workflow data...")
 
-    cursor.execute("DELETE FROM AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN")
+    tables = [
 
-    cursor.execute("DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS")
+        "AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN",
 
-    cursor.execute("DELETE FROM AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS")
+        "AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS",
 
-    cursor.execute("DELETE FROM AGENTGRAVITY.INCIDENTS.ROOT_CAUSES")
+        "AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS",
 
-    cursor.execute("DELETE FROM AGENTGRAVITY.INCIDENTS.INCIDENTS")
+        "AGENTGRAVITY.INCIDENTS.ROOT_CAUSES",
 
-    conn.commit()
+        "AGENTGRAVITY.INCIDENTS.INCIDENTS"
 
-    cursor.close()
+    ]
 
-    conn.close()
+    for table in tables:
+
+        mcp.execute_dml(
+
+            f"DELETE FROM {table}"
+
+        )
 
     print("Workflow tables cleared.\n")
-
 
 def save_incidents(incidents):
 
     if len(incidents) == 0:
         return
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
 
     query = """
     INSERT INTO AGENTGRAVITY.INCIDENTS.INCIDENTS
@@ -58,25 +58,22 @@ def save_incidents(incidents):
     )
     """
 
-    values = []
+    values = [
 
-    for incident in incidents:
-
-        values.append(
-            (
-                incident["kpi_id"],
-                incident["incident_type"],
-                incident["severity"],
-                incident["description"]
-            )
+        (
+            incident["kpi_id"],
+            incident["incident_type"],
+            incident["severity"],
+            incident["description"]
         )
 
-    cursor.executemany(query, values)
+        for incident in incidents
 
-    conn.commit()
+    ]
 
-    cursor.close()
-
-    conn.close()
+    mcp.execute_many(
+        query,
+        values
+    )
 
     print(f"Saved {len(values)} incidents.")

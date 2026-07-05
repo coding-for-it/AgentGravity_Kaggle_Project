@@ -1,14 +1,15 @@
 import traceback
-import pandas as pd
 
-from services.snowflake_connection import get_connection
+from mcp.snowflake_mcp import SnowflakeMCP
 
 
 class ExecutiveService:
 
     def __init__(self):
 
-        self.conn = get_connection()
+        self.mcp = SnowflakeMCP()
+
+    # ----------------------------------------------------
 
     def get_business_summary(self):
 
@@ -23,128 +24,114 @@ class ExecutiveService:
         FROM AGENTGRAVITY.INCIDENTS.INCIDENTS i
 
         INNER JOIN AGENTGRAVITY.INCIDENTS.ROOT_CAUSES rc
-            ON i.INCIDENT_ID = rc.INCIDENT_ID
+        ON i.INCIDENT_ID = rc.INCIDENT_ID
 
         INNER JOIN AGENTGRAVITY.INCIDENTS.IMPACT_ANALYSIS ia
-            ON i.INCIDENT_ID = ia.INCIDENT_ID
+        ON i.INCIDENT_ID = ia.INCIDENT_ID
         """
 
-        df = pd.read_sql(query, self.conn)
+        df = self.mcp.execute_query(query)
 
         print(f"Business Summary Rows Returned: {len(df)}")
 
         return df
 
+    # ----------------------------------------------------
+
     def get_master_incident_id(self):
 
-        cursor = self.conn.cursor()
+        query = """
+        SELECT MIN(INCIDENT_ID)
+        FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
+        """
 
-        try:
+        incident_id = self.mcp.fetch_scalar(query)
 
-            cursor.execute("""
-                SELECT MIN(INCIDENT_ID)
-                FROM AGENTGRAVITY.INCIDENTS.INCIDENTS
-            """)
+        if incident_id is None:
 
-            result = cursor.fetchone()
+            raise Exception("No Incident ID found.")
 
-            if result is None or result[0] is None:
-                raise Exception("No Incident ID found in INCIDENTS table.")
+        print(f"Master Incident ID : {incident_id}")
 
-            incident_id = int(result[0])
+        return int(incident_id)
 
-            print(f"Master Incident ID: {incident_id}")
-
-            return incident_id
-
-        finally:
-            cursor.close()
+    # ----------------------------------------------------
 
     def save_executive_report(
-        self,
-        summary,
-        recommended_action,
-        priority
-    ):
 
-        cursor = None
+        self,
+
+        summary,
+
+        recommended_action,
+
+        priority
+
+    ):
 
         try:
 
-            print("\nEntering save_executive_report()")
-
             if summary is None or str(summary).strip() == "":
+
                 raise Exception("Executive Summary is empty.")
 
-            cursor = self.conn.cursor()
+            self.mcp.execute_dml("""
+
+                DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+
+            """)
 
             incident_id = self.get_master_incident_id()
 
-            print(f"Incident ID : {incident_id}")
-            print(f"Priority    : {priority}")
-            print(f"Summary Length : {len(summary)}")
+            query = """
+            INSERT INTO AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
+            (
+                INCIDENT_ID,
+                EXECUTIVE_SUMMARY,
+                RECOMMENDED_ACTION,
+                BUSINESS_PRIORITY,
+                CREATED_AT
+            )
+            VALUES
+            (
+                %s,
+                %s,
+                %s,
+                %s,
+                CURRENT_TIMESTAMP()
+            )
+            """
 
-            print("\nDeleting existing Executive Reports...")
+            values = (
 
-            cursor.execute("""
-                DELETE FROM AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
-            """)
+                incident_id,
 
-            print("Delete completed.")
+                summary,
 
-            print("\nExecuting INSERT...")
+                recommended_action,
 
-            cursor.execute(
-                """
-                INSERT INTO AGENTGRAVITY.INCIDENTS.EXECUTIVE_REPORTS
-                (
-                    INCIDENT_ID,
-                    EXECUTIVE_SUMMARY,
-                    RECOMMENDED_ACTION,
-                    BUSINESS_PRIORITY,
-                    CREATED_AT
-                )
-                VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    CURRENT_TIMESTAMP()
-                )
-                """,
-                (
-                    incident_id,
-                    summary,
-                    recommended_action,
-                    priority
-                )
+                priority
+
             )
 
-            print("INSERT executed successfully.")
+            self.mcp.execute_dml(
 
-            self.conn.commit()
+                query,
 
-            print("Commit successful.")
+                values
+
+            )
+
             print("Executive Report saved successfully.")
 
-        except Exception as e:
+        except Exception:
 
-            print("\n==============================")
-            print("SAVE EXECUTIVE REPORT FAILED")
-            print("==============================")
-            print(f"Error Type : {type(e).__name__}")
-            print(f"Error      : {e}")
             traceback.print_exc()
 
             raise
 
-        finally:
-
-            if cursor is not None:
-                cursor.close()
+    # ----------------------------------------------------
 
     def close(self):
 
-        if self.conn:
-            self.conn.close()
+        pass
