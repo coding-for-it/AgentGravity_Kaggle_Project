@@ -12,7 +12,7 @@ class MonitoringADKAgent:
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Monitoring Agent")
+        print("ADK -> Monitoring Agent")
         print("=" * 60)
 
         start = time.time()
