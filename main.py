@@ -1,3 +1,12 @@
+import os
+import sys
+
+os.system("chcp 65001 > nul")
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 from agents.adk.monitoring_adk import MonitoringADKAgent
 from agents.adk.rootcause_adk import RootCauseADKAgent
 from agents.adk.impact_adk import ImpactADKAgent
