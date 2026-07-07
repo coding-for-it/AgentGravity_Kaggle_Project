@@ -12,7 +12,7 @@ class ImpactADKAgent:
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Impact Agent")
+        print("ADK -> Impact Agent")
         print("=" * 60)
 
         start = time.time()
