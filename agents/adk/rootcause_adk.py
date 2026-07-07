@@ -12,7 +12,7 @@ class RootCauseADKAgent:
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Root Cause Agent")
+        print("ADK -> Root Cause Agent")
         print("=" * 60)
 
         start = time.time()
