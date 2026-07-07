@@ -417,16 +417,26 @@ def load_impacts_data():
 
 
 def load_recovery_plan():
+
     if is_connected:
+
         return execute_query("""
-            SELECT PLAN_ID, GENERATED_AT, EXECUTIVE_SUMMARY, IMMEDIATE_ACTIONS, SHORT_TERM_ACTIONS, LONG_TERM_ACTIONS,
-                   EXPECTED_BUSINESS_OUTCOME, SUCCESS_METRICS, RISK_LEVEL
+            SELECT
+                PLAN_ID,
+                GENERATED_AT,
+                EXECUTIVE_SUMMARY,
+                IMMEDIATE_ACTIONS,
+                SHORT_TERM_ACTIONS,
+                LONG_TERM_ACTIONS,
+                EXPECTED_BUSINESS_OUTCOME,
+                SUCCESS_METRICS,
+                RISK_LEVEL
             FROM AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN
             ORDER BY GENERATED_AT DESC
             LIMIT 1
         """)
-    return pd.DataFrame()
 
+    return pd.DataFrame()
 
 def load_executive_reports():
     if is_connected:
@@ -680,6 +690,8 @@ def render_agent_console(
                     text=True
                 )
 
+                st.write("Process PID:", proc.pid)
+
                 # Capture console output without displaying it
                 output, _ = proc.communicate()
 
@@ -739,7 +751,9 @@ def render_full_pipeline_console():
         st.session_state.last_execution = "-"
 
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+
     st.markdown("### 🚀 Full AgentGravity Pipeline")
+
     st.markdown(
         "Run the complete AI pipeline from KPI monitoring to executive reporting and recovery planning."
     )
@@ -753,9 +767,18 @@ def render_full_pipeline_console():
             os.path.dirname(os.path.abspath(__file__))
         )
 
+        main_file = os.path.join(
+            project_root,
+            "main.py"
+        )
+
         progress_bar = st.progress(0)
 
         status_placeholder = st.empty()
+
+        console_placeholder = st.empty()
+
+        console_output = ""
 
         start_time = time.time()
 
@@ -767,30 +790,60 @@ def render_full_pipeline_console():
             "Recovery": "⏳ Waiting"
         }
 
-        refresh_status(status_placeholder, agent_status)
+        refresh_status(
+            status_placeholder,
+            agent_status
+        )
 
         try:
 
             proc = subprocess.Popen(
+
                 [
                     sys.executable,
                     "-u",
-                    os.path.join(project_root, "main.py")
+                    main_file
                 ],
+
                 stdout=subprocess.PIPE,
+
                 stderr=subprocess.STDOUT,
+
                 text=True,
+
+                bufsize=1,
+
                 cwd=project_root
+
             )
+
+            st.write(f"Process Started (PID: {proc.pid})")
 
             while True:
 
                 line = proc.stdout.readline()
 
-                if not line:
+                if line == "" and proc.poll() is not None:
                     break
 
+                if not line:
+                    time.sleep(0.05)
+                    continue
+
                 line = line.strip()
+
+                print(line)
+
+                console_output += line + "\n"
+
+                console_placeholder.code(
+                    console_output[-6000:],
+                    language="text"
+                )
+
+                # -----------------------
+                # Monitoring
+                # -----------------------
 
                 if "STEP 1" in line:
 
@@ -798,7 +851,10 @@ def render_full_pipeline_console():
 
                     progress_bar.progress(10)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
                 elif "[Monitoring Agent] Completed" in line:
 
@@ -806,61 +862,101 @@ def render_full_pipeline_console():
 
                     progress_bar.progress(20)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
+
+                # -----------------------
+                # Root Cause
+                # -----------------------
 
                 elif "STEP 2" in line:
 
                     agent_status["Root Cause"] = "⚙ Running"
 
-                    progress_bar.progress(30)
+                    progress_bar.progress(35)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
                 elif "Root Cause Analysis Completed" in line:
 
                     agent_status["Root Cause"] = "✅ Completed"
 
-                    progress_bar.progress(45)
+                    progress_bar.progress(50)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
+
+                # -----------------------
+                # Impact
+                # -----------------------
 
                 elif "STEP 3" in line:
 
                     agent_status["Impact"] = "⚙ Running"
 
-                    progress_bar.progress(55)
+                    progress_bar.progress(60)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
                 elif "Impact Analysis Completed" in line:
 
                     agent_status["Impact"] = "✅ Completed"
 
-                    progress_bar.progress(70)
+                    progress_bar.progress(75)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
+
+                # -----------------------
+                # Executive
+                # -----------------------
 
                 elif "STEP 4" in line:
 
                     agent_status["Executive"] = "⚙ Running"
 
-                    progress_bar.progress(80)
+                    progress_bar.progress(85)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
                 elif "EXECUTIVE AGENT COMPLETED SUCCESSFULLY" in line:
 
                     agent_status["Executive"] = "✅ Completed"
 
-                    progress_bar.progress(90)
+                    progress_bar.progress(95)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
-                elif "Recovery Agent Started" in line:
+                # -----------------------
+                # Recovery
+                # -----------------------
+
+                elif "STEP 5" in line or "Recovery Agent Started" in line:
 
                     agent_status["Recovery"] = "⚙ Running"
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
                 elif "Recovery plan saved successfully." in line:
 
@@ -868,39 +964,64 @@ def render_full_pipeline_console():
 
                     progress_bar.progress(100)
 
-                    refresh_status(status_placeholder, agent_status)
+                    refresh_status(
+                        status_placeholder,
+                        agent_status
+                    )
 
             proc.wait()
 
             execution_time = round(
+
                 time.time() - start_time,
+
                 2
+
             )
 
             if proc.returncode == 0:
+
                 st.session_state.pipeline_running = False
+
                 st.session_state.pipeline_status = "Completed"
+
                 st.session_state.pipeline_time = f"{execution_time} sec"
+
                 st.session_state.last_execution = datetime.now().strftime(
-                "%d %b %Y %I:%M:%S %p"
+                    "%d %b %Y %I:%M:%S %p"
                 )
+
                 st.success(
                     f"✅ Pipeline completed successfully in {execution_time} sec"
                 )
 
-                time.sleep(2)
+                time.sleep(1)
 
                 st.rerun()
 
             else:
+
                 st.session_state.pipeline_running = False
+
                 st.session_state.pipeline_status = "Failed"
+
+                remaining = proc.stdout.read()
+
+                if remaining:
+                    console_placeholder.code(
+                        console_output + remaining,
+                        language="text"
+                    )
 
                 st.error("❌ Pipeline execution failed.")
 
         except Exception as e:
 
-            st.error(f"Pipeline Error : {e}")
+            st.session_state.pipeline_running = False
+
+            st.session_state.pipeline_status = "Failed"
+
+            st.error(f"Pipeline Error: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -2078,7 +2199,7 @@ elif page == "👔 Executive Dashboard":
             risk_badge = render_pill(plan_exec["RISK_LEVEL"])
             st.markdown(f"**Risk Level:** {risk_badge}", unsafe_allow_html=True)
             st.markdown(f"<p style='font-size:12px; color:#94A3B8; margin-top:10px; line-height:1.6;'>{str(plan_exec['EXECUTIVE_SUMMARY'])[:280]}...</p>", unsafe_allow_html=True)
-            st.markdown(f"<span style='font-size:10px; color:#64748B;'>Generated: {plan_exec['GENERATED_AT']}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:10px; color:#64748B;'>Generated: {plan_exec['CREATED_AT']}</span>", unsafe_allow_html=True)
         else:
             st.caption("No recovery plan generated. Run the full pipeline in Operations Center.")
         st.markdown('</div>', unsafe_allow_html=True)
