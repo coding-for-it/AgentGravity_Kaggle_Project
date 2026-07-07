@@ -12,7 +12,7 @@ class RecoveryADKAgent:
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Recovery Agent")
+        print("ADK -> Recovery Agent")
         print("=" * 60)
 
         start = time.time()
