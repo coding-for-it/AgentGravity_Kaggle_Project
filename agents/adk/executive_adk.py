@@ -12,7 +12,7 @@ class ExecutiveADKAgent:
     def execute(self):
 
         print("\n" + "=" * 60)
-        print("ADK → Executive Agent")
+        print("ADK -> Executive Agent")
         print("=" * 60)
 
         start = time.time()
