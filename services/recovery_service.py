@@ -8,6 +8,8 @@ class RecoveryService:
         self.mcp = SnowflakeMCP()
 
     # ----------------------------------------------------
+    # Get Latest Executive Report
+    # ----------------------------------------------------
 
     def get_executive_report(self):
 
@@ -23,36 +25,28 @@ class RecoveryService:
         return self.mcp.execute_query(query)
 
     # ----------------------------------------------------
+    # Save Recovery Plan
+    # ----------------------------------------------------
 
     def save_recovery_plan(
-
         self,
-
         executive_summary,
-
         immediate_actions,
-
         short_term_actions,
-
         long_term_actions,
-
         expected_outcome,
-
         success_metrics,
-
         risk_level
-
     ):
 
-        self.mcp.execute_dml("""
-
+        delete_query = """
         DELETE FROM AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN
+        """
 
-        """)
+        self.mcp.execute_dml(delete_query)
 
-        query = """
-        INSERT INTO
-        AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN
+        insert_query = """
+        INSERT INTO AGENTGRAVITY.INCIDENTS.RECOVERY_PLAN
         (
             EXECUTIVE_SUMMARY,
             IMMEDIATE_ACTIONS,
@@ -60,7 +54,8 @@ class RecoveryService:
             LONG_TERM_ACTIONS,
             EXPECTED_BUSINESS_OUTCOME,
             SUCCESS_METRICS,
-            RISK_LEVEL
+            RISK_LEVEL,
+            GENERATED_AT
         )
         VALUES
         (
@@ -70,38 +65,29 @@ class RecoveryService:
             %s,
             %s,
             %s,
-            %s
+            %s,
+            CURRENT_TIMESTAMP()
         )
         """
 
         values = (
-
             executive_summary,
-
             immediate_actions,
-
             short_term_actions,
-
             long_term_actions,
-
             expected_outcome,
-
             success_metrics,
-
             risk_level
-
         )
 
-        self.mcp.execute_dml(
+        self.mcp.execute_dml(insert_query, values)
 
-            query,
+        print("Recovery plan saved successfully.")
 
-            values
-
-        )
-
+    # ----------------------------------------------------
+    # Close MCP Connection
     # ----------------------------------------------------
 
     def close(self):
 
-        pass
+        self.mcp.close()
